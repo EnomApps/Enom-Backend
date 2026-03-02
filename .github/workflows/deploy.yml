@@ -1,4 +1,4 @@
-name: Manual Deploy to cPanel
+name: Deploy via SSH
 
 on:
   workflow_dispatch:
@@ -10,15 +10,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Dependencies
-        run: composer install --no-dev --optimize-autoloader
-
-      - name: Deploy via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      - name: Upload files via SCP
+        uses: appleboy/scp-action@v0.1.7
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          port: 21
-          server-dir: /enom/
+          host: 150.232.1.80
+          username: raojhibs
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          source: "."
+          target: "/home/raojhibs/enom"
+
+      - name: Run Laravel Commands
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 150.232.1.80
+          username: raojhibs
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /home/raojhibs/enom
+            composer install --no-dev --optimize-autoloader
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
