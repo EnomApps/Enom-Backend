@@ -30,12 +30,11 @@ class AuthController extends Controller
         content: new OA\MediaType(
             mediaType: 'application/json',
             schema: new OA\Schema(
-                required: ['name', 'email', 'password', 'password_confirmation'],
+                required: ['name', 'email', 'password'],
                 properties: [
-                    new OA\Property(property: 'name',                  type: 'string', example: 'John Doe'),
-                    new OA\Property(property: 'email',                 type: 'string', format: 'email',    example: 'john@example.com'),
-                    new OA\Property(property: 'password',              type: 'string', format: 'password', example: 'password123'),
-                    new OA\Property(property: 'password_confirmation', type: 'string', format: 'password', example: 'password123'),
+                    new OA\Property(property: 'name',     type: 'string', example: 'John Doe'),
+                    new OA\Property(property: 'email',    type: 'string', format: 'email',    example: 'john@example.com'),
+                    new OA\Property(property: 'password', type: 'string', format: 'password', example: 'password123'),
                 ]
             )
         )
@@ -56,7 +55,7 @@ class AuthController extends Controller
         $request->validate([
             'name'     => ['required', 'string', 'max:255'],
             'email'    => ['required', 'string', 'email', 'max:255'],
-            'password' => ['required', 'confirmed', Password::min(8)],
+            'password' => ['required', Password::min(8)],
         ]);
 
         $existing = User::where('email', $request->email)->first();
@@ -97,10 +96,9 @@ class AuthController extends Controller
         content: new OA\MediaType(
             mediaType: 'application/json',
             schema: new OA\Schema(
-                required: ['email', 'otp'],
+                required: ['otp'],
                 properties: [
-                    new OA\Property(property: 'email', type: 'string', format: 'email', example: 'john@example.com'),
-                    new OA\Property(property: 'otp',   type: 'string', example: '483921'),
+                    new OA\Property(property: 'otp', type: 'string', example: '483921'),
                 ]
             )
         )
@@ -131,17 +129,12 @@ class AuthController extends Controller
     public function verifyOtp(Request $request): JsonResponse
     {
         $request->validate([
-            'email' => ['required', 'email'],
-            'otp'   => ['required', 'digits:6'],
+            'otp' => ['required', 'digits:6'],
         ]);
 
-        $record = OtpVerification::where('email', $request->email)->first();
+        $record = OtpVerification::where('otp', $request->otp)->first();
 
         if (! $record) {
-            return response()->json(['message' => 'No pending verification found for this email.'], 404);
-        }
-
-        if ($record->otp !== $request->otp) {
             return response()->json(['message' => 'Invalid OTP.'], 422);
         }
 
@@ -149,7 +142,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'OTP has expired. Please request a new one.'], 422);
         }
 
-        $user = User::where('email', $request->email)->firstOrFail();
+        $user = User::where('email', $record->email)->firstOrFail();
         $user->is_verified = true;
         $user->save();
 
