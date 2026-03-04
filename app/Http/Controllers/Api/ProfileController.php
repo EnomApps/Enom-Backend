@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
 
 class ProfileController extends Controller
@@ -93,10 +94,15 @@ class ProfileController extends Controller
 
         if ($request->hasFile('profile_image')) {
             if ($user->profile_image) {
-                Storage::disk('public')->delete($user->profile_image);
+                $oldPath = public_path($user->profile_image);
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
             }
-            $data['profile_image'] = $request->file('profile_image')
-                ->store('profile-images', 'public');
+            $file      = $request->file('profile_image');
+            $filename  = Str::random(40) . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('profile-images'), $filename);
+            $data['profile_image'] = 'profile-images/' . $filename;
         }
 
         $user->update($data);
