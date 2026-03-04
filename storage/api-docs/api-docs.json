@@ -18,20 +18,18 @@
                     "Auth"
                 ],
                 "summary": "Register a new user",
-                "description": "Creates a new user account and returns a Sanctum auth token.",
+                "description": "Accepts name, email and password. Sends a 6-digit OTP to the email for verification. Token is NOT returned here — call /verify-otp after this.",
                 "operationId": "register",
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "multipart/form-data": {
+                        "application/json": {
                             "schema": {
                                 "required": [
                                     "name",
                                     "email",
                                     "password",
-                                    "password_confirmation",
-                                    "gender",
-                                    "dob"
+                                    "password_confirmation"
                                 ],
                                 "properties": {
                                     "name": {
@@ -52,35 +50,6 @@
                                         "type": "string",
                                         "format": "password",
                                         "example": "password123"
-                                    },
-                                    "gender": {
-                                        "type": "string",
-                                        "enum": [
-                                            "male",
-                                            "female",
-                                            "other"
-                                        ],
-                                        "example": "male"
-                                    },
-                                    "dob": {
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "1995-06-15"
-                                    },
-                                    "bio": {
-                                        "type": "string",
-                                        "example": "Hello, I'm John",
-                                        "nullable": true
-                                    },
-                                    "location": {
-                                        "type": "string",
-                                        "example": "New York",
-                                        "nullable": true
-                                    },
-                                    "profile_image": {
-                                        "type": "string",
-                                        "format": "binary",
-                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -90,14 +59,73 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Registration successful",
+                        "description": "OTP sent to email",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Registration successful."
+                                            "example": "OTP sent to your email. Please verify to continue."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Email already registered and verified"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                }
+            }
+        },
+        "/api/auth/verify-otp": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Verify email with OTP",
+                "description": "Submit the 6-digit OTP received by email. On success, returns the Sanctum auth token.",
+                "operationId": "verifyOtp",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "otp"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "john@example.com"
+                                    },
+                                    "otp": {
+                                        "type": "string",
+                                        "example": "483921"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Email verified — token returned",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Email verified successfully."
                                         },
                                         "user": {
                                             "properties": {
@@ -113,29 +141,9 @@
                                                     "type": "string",
                                                     "example": "john@example.com"
                                                 },
-                                                "gender": {
-                                                    "type": "string",
-                                                    "example": "male"
-                                                },
-                                                "dob": {
-                                                    "type": "string",
-                                                    "example": "1995-06-15"
-                                                },
-                                                "bio": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                },
-                                                "location": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                },
-                                                "profile_image": {
-                                                    "type": "string",
-                                                    "nullable": true
-                                                },
                                                 "is_verified": {
                                                     "type": "boolean",
-                                                    "example": false
+                                                    "example": true
                                                 },
                                                 "status": {
                                                     "type": "string",
@@ -154,33 +162,65 @@
                             }
                         }
                     },
+                    "404": {
+                        "description": "No pending verification found for this email"
+                    },
                     "422": {
-                        "description": "Validation error",
+                        "description": "Invalid or expired OTP"
+                    }
+                }
+            }
+        },
+        "/api/auth/resend-otp": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Resend OTP",
+                "description": "Resends a fresh OTP to the given email if the account is not yet verified.",
+                "operationId": "resendOtp",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "john@example.com"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OTP resent",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "The email has already been taken."
-                                        },
-                                        "errors": {
-                                            "properties": {
-                                                "email": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "string",
-                                                        "example": "The email has already been taken."
-                                                    }
-                                                }
-                                            },
-                                            "type": "object"
+                                            "example": "A new OTP has been sent to your email."
                                         }
                                     },
                                     "type": "object"
                                 }
                             }
                         }
+                    },
+                    "404": {
+                        "description": "Email not found"
+                    },
+                    "409": {
+                        "description": "Email already verified"
                     }
                 }
             }
