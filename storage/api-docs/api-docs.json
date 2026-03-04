@@ -7,7 +7,11 @@
     },
     "servers": [
         {
-            "url": "/enom/public",
+            "url": "https://api.enom.ai",
+            "description": "Production server"
+        },
+        {
+            "url": "http://localhost/enom/public",
             "description": "Local XAMPP server"
         }
     ],

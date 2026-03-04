@@ -10,7 +10,11 @@ use OpenApi\Attributes as OA;
     description: 'Enom REST API documentation'
 )]
 #[OA\Server(
-    url: '/enom/public',
+    url: 'https://api.enom.ai',
+    description: 'Production server'
+)]
+#[OA\Server(
+    url: 'http://localhost/enom/public',
     description: 'Local XAMPP server'
 )]
 abstract class Controller
