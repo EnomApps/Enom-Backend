@@ -1,0 +1,4 @@
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/raojhibs/public_html/enom
+    - /bin/cp -R * $DEPLOYPATH
