@@ -12,11 +12,18 @@ class OtpMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public string $otp) {}
+    public function __construct(
+        public string $otp,
+        public string $type = 'email_verification'
+    ) {}
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Your Email Verification OTP');
+        $subject = $this->type === 'password_reset'
+            ? 'Password Reset OTP'
+            : 'Your Email Verification OTP';
+
+        return new Envelope(subject: $subject);
     }
 
     public function content(): Content

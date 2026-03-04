@@ -17,6 +17,13 @@ use OpenApi\Attributes as OA;
     url: 'http://localhost/enom/public',
     description: 'Local XAMPP server'
 )]
+#[OA\SecurityScheme(
+    securityScheme: 'bearerAuth',
+    type: 'http',
+    scheme: 'bearer',
+    bearerFormat: 'token',
+    description: 'Enter token as: Bearer {token}'
+)]
 abstract class Controller
 {
     //

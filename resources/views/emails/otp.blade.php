@@ -11,8 +11,14 @@
 </head>
 <body>
     <div class="container">
-        <h2 style="text-align:center; color:#333;">Email Verification</h2>
-        <p>Use the OTP below to verify your email address. It expires in <strong>10 minutes</strong>.</p>
+        @if($type === 'password_reset')
+            <h2 style="text-align:center; color:#333;">Password Reset</h2>
+            <p>Use the OTP below to reset your password. It expires in <strong>10 minutes</strong>.</p>
+        @else
+            <h2 style="text-align:center; color:#333;">Email Verification</h2>
+            <p>Use the OTP below to verify your email address. It expires in <strong>10 minutes</strong>.</p>
+        @endif
+
         <div class="otp">{{ $otp }}</div>
         <p class="note">If you did not request this, please ignore this email.</p>
     </div>

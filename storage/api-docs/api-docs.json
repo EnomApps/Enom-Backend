@@ -87,7 +87,7 @@
                     "Auth"
                 ],
                 "summary": "Verify email with OTP",
-                "description": "Submit the 6-digit OTP received by email. On success, returns the Sanctum auth token.",
+                "description": "Submit the 6-digit OTP received after registration. On success, returns the Sanctum auth token.",
                 "operationId": "verifyOtp",
                 "requestBody": {
                     "required": true,
@@ -154,9 +154,6 @@
                             }
                         }
                     },
-                    "404": {
-                        "description": "No pending verification found for this email"
-                    },
                     "422": {
                         "description": "Invalid or expired OTP"
                     }
@@ -168,7 +165,7 @@
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Resend OTP",
+                "summary": "Resend email verification OTP",
                 "description": "Resends a fresh OTP to the given email if the account is not yet verified.",
                 "operationId": "resendOtp",
                 "requestBody": {
@@ -216,12 +213,428 @@
                     }
                 }
             }
+        },
+        "/api/auth/login": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Login",
+                "description": "Authenticate with email and password. Returns a Sanctum token on success.",
+                "operationId": "login",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "john@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Login successful."
+                                        },
+                                        "user": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "John Doe"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "john@example.com"
+                                                },
+                                                "is_verified": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "active"
+                                                },
+                                                "last_login_at": {
+                                                    "type": "string",
+                                                    "example": "2026-03-04T10:00:00Z"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "1|abc123xyz..."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid password"
+                    },
+                    "403": {
+                        "description": "Email not verified or account blocked"
+                    },
+                    "404": {
+                        "description": "Account not found"
+                    }
+                }
+            }
+        },
+        "/api/auth/forgot-password": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Forgot password — send OTP",
+                "description": "Sends a password reset OTP to the email if a verified account exists. Always returns 200 for security.",
+                "operationId": "forgotPassword",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "john@example.com"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OTP sent (if account exists)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "If an account with that email exists, an OTP has been sent."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/reset-password": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Reset password with OTP",
+                "description": "Submit the OTP received via forgot-password along with a new password. Returns a fresh token after reset.",
+                "operationId": "resetPassword",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "otp",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "otp": {
+                                        "type": "string",
+                                        "example": "192837"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "newpassword123"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Password reset successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Password reset successfully."
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "2|xyz789abc..."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid or expired OTP"
+                    }
+                }
+            }
+        },
+        "/api/auth/logout": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Logout",
+                "description": "Revokes the current access token.",
+                "operationId": "logout",
+                "responses": {
+                    "200": {
+                        "description": "Logged out",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Logged out successfully."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/user/profile": {
+            "get": {
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Get authenticated user profile",
+                "operationId": "getProfile",
+                "responses": {
+                    "200": {
+                        "description": "User profile",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "user": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "John Doe"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "john@example.com"
+                                                },
+                                                "gender": {
+                                                    "type": "string",
+                                                    "example": "male",
+                                                    "nullable": true
+                                                },
+                                                "dob": {
+                                                    "type": "string",
+                                                    "example": "1995-06-15",
+                                                    "nullable": true
+                                                },
+                                                "bio": {
+                                                    "type": "string",
+                                                    "example": "Hello!",
+                                                    "nullable": true
+                                                },
+                                                "location": {
+                                                    "type": "string",
+                                                    "example": "New York",
+                                                    "nullable": true
+                                                },
+                                                "profile_image": {
+                                                    "type": "string",
+                                                    "example": "profile-images/photo.jpg",
+                                                    "nullable": true
+                                                },
+                                                "is_verified": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "active"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Update authenticated user profile",
+                "description": "All fields are optional. Send only the fields you want to update. Use multipart/form-data when uploading a profile image.",
+                "operationId": "updateProfile",
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "John Doe"
+                                    },
+                                    "gender": {
+                                        "type": "string",
+                                        "enum": [
+                                            "male",
+                                            "female",
+                                            "other"
+                                        ]
+                                    },
+                                    "dob": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "1995-06-15"
+                                    },
+                                    "bio": {
+                                        "type": "string",
+                                        "example": "Hello, I am John."
+                                    },
+                                    "location": {
+                                        "type": "string",
+                                        "example": "New York"
+                                    },
+                                    "profile_image": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Profile updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Profile updated successfully."
+                                        },
+                                        "user": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "description": "Enter token as: Bearer {token}",
+                "bearerFormat": "token",
+                "scheme": "bearer"
+            }
         }
     },
     "tags": [
         {
             "name": "Auth",
             "description": "Auth"
+        },
+        {
+            "name": "Profile",
+            "description": "Profile"
         }
     ]
 }
