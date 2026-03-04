@@ -358,13 +358,67 @@
                 }
             }
         },
+        "/api/auth/verify-reset-otp": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Verify password reset OTP",
+                "description": "Step 2 of forgot-password flow. Submit the OTP from the email. On success, returns a reset_token to use in the next step (set new password screen).",
+                "operationId": "verifyResetOtp",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "otp"
+                                ],
+                                "properties": {
+                                    "otp": {
+                                        "type": "string",
+                                        "example": "192837"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OTP verified — reset_token returned",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "OTP verified. You may now reset your password."
+                                        },
+                                        "reset_token": {
+                                            "type": "string",
+                                            "example": "a1b2c3d4-e5f6-..."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid or expired OTP"
+                    }
+                }
+            }
+        },
         "/api/auth/reset-password": {
             "post": {
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Reset password with OTP",
-                "description": "Submit the OTP received via forgot-password along with a new password. Returns a fresh token after reset.",
+                "summary": "Reset password",
+                "description": "Step 3 of forgot-password flow. Submit the reset_token from verify-reset-otp and the new password.",
                 "operationId": "resetPassword",
                 "requestBody": {
                     "required": true,
@@ -372,13 +426,13 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "otp",
+                                    "reset_token",
                                     "password"
                                 ],
                                 "properties": {
-                                    "otp": {
+                                    "reset_token": {
                                         "type": "string",
-                                        "example": "192837"
+                                        "example": "a1b2c3d4-e5f6-..."
                                     },
                                     "password": {
                                         "type": "string",
@@ -413,7 +467,7 @@
                         }
                     },
                     "422": {
-                        "description": "Invalid or expired OTP"
+                        "description": "Invalid or expired reset token"
                     }
                 }
             }

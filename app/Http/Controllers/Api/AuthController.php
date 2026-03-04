@@ -294,13 +294,13 @@ class AuthController extends Controller
     }
 
     // ─────────────────────────────────────────
-    // RESET PASSWORD
+    // VERIFY RESET OTP  (Step 2 of forgot-password)
     // ─────────────────────────────────────────
     #[OA\Post(
-        path: '/api/auth/reset-password',
-        operationId: 'resetPassword',
-        summary: 'Reset password with OTP',
-        description: 'Submit the OTP received via forgot-password along with a new password. Returns a fresh token after reset.',
+        path: '/api/auth/verify-reset-otp',
+        operationId: 'verifyResetOtp',
+        summary: 'Verify password reset OTP',
+        description: 'Step 2 of forgot-password flow. Submit the OTP from the email. On success, returns a reset_token to use in the next step (set new password screen).',
         tags: ['Auth']
     )]
     #[OA\RequestBody(
@@ -308,27 +308,23 @@ class AuthController extends Controller
         content: new OA\MediaType(
             mediaType: 'application/json',
             schema: new OA\Schema(
-                required: ['otp', 'password'],
+                required: ['otp'],
                 properties: [
-                    new OA\Property(property: 'otp',      type: 'string', example: '192837'),
-                    new OA\Property(property: 'password', type: 'string', format: 'password', example: 'newpassword123'),
+                    new OA\Property(property: 'otp', type: 'string', example: '192837'),
                 ]
             )
         )
     )]
-    #[OA\Response(response: 200, description: 'Password reset successful',
+    #[OA\Response(response: 200, description: 'OTP verified — reset_token returned',
         content: new OA\JsonContent(properties: [
-            new OA\Property(property: 'message', type: 'string', example: 'Password reset successfully.'),
-            new OA\Property(property: 'token',   type: 'string', example: '2|xyz789abc...'),
+            new OA\Property(property: 'message',     type: 'string', example: 'OTP verified. You may now reset your password.'),
+            new OA\Property(property: 'reset_token', type: 'string', example: 'a1b2c3d4-e5f6-...'),
         ])
     )]
     #[OA\Response(response: 422, description: 'Invalid or expired OTP')]
-    public function resetPassword(Request $request): JsonResponse
+    public function verifyResetOtp(Request $request): JsonResponse
     {
-        $request->validate([
-            'otp'      => ['required', 'digits:6'],
-            'password' => ['required', Password::min(8)],
-        ]);
+        $request->validate(['otp' => ['required', 'digits:6']]);
 
         $record = OtpVerification::where('otp', $request->otp)
             ->where('type', 'password_reset')
@@ -342,13 +338,74 @@ class AuthController extends Controller
             return response()->json(['message' => 'OTP has expired. Please request a new one.'], 422);
         }
 
+        // Generate a secure reset token valid for 15 minutes
+        $resetToken = \Str::uuid()->toString();
+        $record->update([
+            'reset_token' => $resetToken,
+            'expires_at'  => now()->addMinutes(15),
+        ]);
+
+        return response()->json([
+            'message'     => 'OTP verified. You may now reset your password.',
+            'reset_token' => $resetToken,
+        ]);
+    }
+
+    // ─────────────────────────────────────────
+    // RESET PASSWORD  (Step 3 of forgot-password)
+    // ─────────────────────────────────────────
+    #[OA\Post(
+        path: '/api/auth/reset-password',
+        operationId: 'resetPassword',
+        summary: 'Reset password',
+        description: 'Step 3 of forgot-password flow. Submit the reset_token from verify-reset-otp and the new password.',
+        tags: ['Auth']
+    )]
+    #[OA\RequestBody(
+        required: true,
+        content: new OA\MediaType(
+            mediaType: 'application/json',
+            schema: new OA\Schema(
+                required: ['reset_token', 'password'],
+                properties: [
+                    new OA\Property(property: 'reset_token', type: 'string', example: 'a1b2c3d4-e5f6-...'),
+                    new OA\Property(property: 'password',    type: 'string', format: 'password', example: 'newpassword123'),
+                ]
+            )
+        )
+    )]
+    #[OA\Response(response: 200, description: 'Password reset successful',
+        content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'message', type: 'string', example: 'Password reset successfully.'),
+            new OA\Property(property: 'token',   type: 'string', example: '2|xyz789abc...'),
+        ])
+    )]
+    #[OA\Response(response: 422, description: 'Invalid or expired reset token')]
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'reset_token' => ['required', 'string'],
+            'password'    => ['required', Password::min(8)],
+        ]);
+
+        $record = OtpVerification::where('reset_token', $request->reset_token)
+            ->where('type', 'password_reset')
+            ->first();
+
+        if (! $record) {
+            return response()->json(['message' => 'Invalid or expired reset token.'], 422);
+        }
+
+        if ($record->expires_at->isPast()) {
+            return response()->json(['message' => 'Reset token has expired. Please start over.'], 422);
+        }
+
         $user = User::where('email', $record->email)->firstOrFail();
         $user->password = Hash::make($request->password);
         $user->save();
 
         $record->delete();
 
-        // Revoke all old tokens and issue a fresh one
         $user->tokens()->delete();
         $token = $user->createToken('auth_token')->plainTextToken;
 
