@@ -2,3 +2,6 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/raojhibs/public_html/enom
     - /bin/cp -R * $DEPLOYPATH
+    - cd $DEPLOYPATH && /usr/local/bin/php artisan storage:link --force
+    - cd $DEPLOYPATH && /usr/local/bin/php artisan config:clear
+    - cd $DEPLOYPATH && /usr/local/bin/php artisan cache:clear
