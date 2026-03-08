@@ -11,7 +11,11 @@ use OpenApi\Attributes as OA;
 )]
 #[OA\Server(
     url: 'https://api.enom.ai',
-    description: 'Production server'
+    description: 'Production server (cPanel)'
+)]
+#[OA\Server(
+    url: 'http://47.129.5.68',
+    description: 'AWS server'
 )]
 #[OA\Server(
     url: 'http://localhost/enom/public',
