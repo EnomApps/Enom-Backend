@@ -15,6 +15,9 @@ Route::prefix('auth')->group(function () {
     Route::post('/reset-password',   [AuthController::class, 'resetPassword']);
 });
 
+// ─── Public Data Routes ─────────────────────────────────────────────────────
+Route::get('/interests', [ProfileController::class, 'interests']);
+
 // ─── Protected Routes (require Bearer token) ───────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout',  [AuthController::class,  'logout']);

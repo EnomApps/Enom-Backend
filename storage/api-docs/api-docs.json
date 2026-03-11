@@ -536,6 +536,11 @@
                                                     "type": "string",
                                                     "example": "John Doe"
                                                 },
+                                                "username": {
+                                                    "type": "string",
+                                                    "example": "johndoe",
+                                                    "nullable": true
+                                                },
                                                 "email": {
                                                     "type": "string",
                                                     "example": "john@example.com"
@@ -552,7 +557,7 @@
                                                 },
                                                 "bio": {
                                                     "type": "string",
-                                                    "example": "Hello!",
+                                                    "example": "Tech lover | Startup builder",
                                                     "nullable": true
                                                 },
                                                 "location": {
@@ -564,6 +569,73 @@
                                                     "type": "string",
                                                     "example": "profile-images/photo.jpg",
                                                     "nullable": true
+                                                },
+                                                "profession": {
+                                                    "type": "string",
+                                                    "example": "Developer",
+                                                    "nullable": true
+                                                },
+                                                "country": {
+                                                    "type": "string",
+                                                    "example": "India",
+                                                    "nullable": true
+                                                },
+                                                "city": {
+                                                    "type": "string",
+                                                    "example": "Chennai",
+                                                    "nullable": true
+                                                },
+                                                "region": {
+                                                    "type": "string",
+                                                    "example": "South India",
+                                                    "nullable": true
+                                                },
+                                                "content_preferences": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    },
+                                                    "example": [
+                                                        "Short videos",
+                                                        "Articles"
+                                                    ],
+                                                    "nullable": true
+                                                },
+                                                "social_personality": {
+                                                    "type": "string",
+                                                    "example": "Creator",
+                                                    "nullable": true
+                                                },
+                                                "languages": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    },
+                                                    "example": [
+                                                        "English",
+                                                        "Tamil"
+                                                    ],
+                                                    "nullable": true
+                                                },
+                                                "privacy_setting": {
+                                                    "type": "string",
+                                                    "example": "public"
+                                                },
+                                                "interests": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "name": {
+                                                                "type": "string",
+                                                                "example": "Technology"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
                                                 },
                                                 "is_verified": {
                                                     "type": "boolean",
@@ -597,7 +669,7 @@
                     "Profile"
                 ],
                 "summary": "Update authenticated user profile",
-                "description": "All fields are optional. Send only the fields you want to update. Use multipart/form-data when uploading a profile image.",
+                "description": "All fields are optional. Send only the fields you want to update. Use multipart/form-data when uploading a profile image. For interests, send an array of interest IDs.",
                 "operationId": "updateProfile",
                 "requestBody": {
                     "required": false,
@@ -608,6 +680,10 @@
                                     "name": {
                                         "type": "string",
                                         "example": "John Doe"
+                                    },
+                                    "username": {
+                                        "type": "string",
+                                        "example": "johndoe"
                                     },
                                     "gender": {
                                         "type": "string",
@@ -624,7 +700,7 @@
                                     },
                                     "bio": {
                                         "type": "string",
-                                        "example": "Hello, I am John."
+                                        "example": "Tech lover | Startup builder"
                                     },
                                     "location": {
                                         "type": "string",
@@ -633,6 +709,65 @@
                                     "profile_image": {
                                         "type": "string",
                                         "format": "binary"
+                                    },
+                                    "profession": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Student",
+                                            "Entrepreneur",
+                                            "Developer",
+                                            "Designer",
+                                            "Business Owner",
+                                            "Creator",
+                                            "Musician",
+                                            "Other"
+                                        ],
+                                        "example": "Developer"
+                                    },
+                                    "country": {
+                                        "type": "string",
+                                        "example": "India"
+                                    },
+                                    "city": {
+                                        "type": "string",
+                                        "example": "Chennai"
+                                    },
+                                    "region": {
+                                        "type": "string",
+                                        "example": "South India"
+                                    },
+                                    "content_preferences": {
+                                        "description": "JSON array as string",
+                                        "type": "string",
+                                        "example": "[\"Short videos\",\"Articles\"]"
+                                    },
+                                    "social_personality": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Creator",
+                                            "Viewer",
+                                            "Influencer",
+                                            "Business",
+                                            "Community Builder"
+                                        ]
+                                    },
+                                    "languages": {
+                                        "description": "JSON array as string",
+                                        "type": "string",
+                                        "example": "[\"English\",\"Tamil\"]"
+                                    },
+                                    "privacy_setting": {
+                                        "type": "string",
+                                        "enum": [
+                                            "public",
+                                            "private",
+                                            "friends_only"
+                                        ]
+                                    },
+                                    "interest_ids": {
+                                        "description": "Comma-separated interest IDs (max 10)",
+                                        "type": "string",
+                                        "example": "1,3,5,7"
                                     }
                                 },
                                 "type": "object"
@@ -672,6 +807,50 @@
                         "bearerAuth": []
                     }
                 ]
+            }
+        },
+        "/api/interests": {
+            "get": {
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Get all available interests",
+                "description": "Returns all interests grouped by category. Use the IDs when updating user profile.",
+                "operationId": "getInterests",
+                "responses": {
+                    "200": {
+                        "description": "List of interests",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "interests": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Technology"
+                                                    },
+                                                    "category": {
+                                                        "type": "string",
+                                                        "example": "Tech"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     },

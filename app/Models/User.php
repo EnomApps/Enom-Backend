@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -18,37 +19,53 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
-   protected $fillable = [
-    'name',
-    'email',
-    'password',
-    'gender',
-    'dob',
-    'bio',
-    'location',
-    'profile_image',
-    'is_verified',
-    'status'
-];
+    protected $fillable = [
+        'name',
+        'username',
+        'email',
+        'password',
+        'gender',
+        'dob',
+        'bio',
+        'location',
+        'profile_image',
+        'profession',
+        'country',
+        'city',
+        'region',
+        'content_preferences',
+        'social_personality',
+        'languages',
+        'privacy_setting',
+        'is_verified',
+        'status',
+    ];
 
-protected $hidden = [
-    'password',
-    'remember_token'
-];
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
 
-protected $casts = [
-    'email_verified_at' => 'datetime',
-    'dob' => 'date',
-    'is_verified' => 'boolean',
-    'last_login_at' => 'datetime',
-];
+    protected $casts = [
+        'email_verified_at'   => 'datetime',
+        'dob'                 => 'date',
+        'is_verified'         => 'boolean',
+        'last_login_at'       => 'datetime',
+        'content_preferences' => 'array',
+        'languages'           => 'array',
+    ];
 
-protected $appends = ['profile_image_url'];
+    protected $appends = ['profile_image_url'];
 
-public function getProfileImageUrlAttribute(): ?string
-{
-    return $this->profile_image
-        ? asset($this->profile_image)
-        : null;
-}
+    public function getProfileImageUrlAttribute(): ?string
+    {
+        return $this->profile_image
+            ? asset($this->profile_image)
+            : null;
+    }
+
+    public function interests(): BelongsToMany
+    {
+        return $this->belongsToMany(Interest::class, 'user_interests');
+    }
 }
