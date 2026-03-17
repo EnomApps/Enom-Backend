@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Interest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
 
@@ -139,18 +140,15 @@ class ProfileController extends Controller
             $data['languages'] = json_decode($request->input('languages'), true);
         }
 
-        // Handle profile image upload
+        // Handle profile image upload to S3
         if ($request->hasFile('profile_image')) {
             if ($user->profile_image) {
-                $oldPath = public_path($user->profile_image);
-                if (file_exists($oldPath)) {
-                    unlink($oldPath);
-                }
+                Storage::disk('s3')->delete($user->profile_image);
             }
             $file     = $request->file('profile_image');
-            $filename = Str::random(40) . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('profile-images'), $filename);
-            $data['profile_image'] = 'profile-images/' . $filename;
+            $filename = 'profile-images/' . Str::random(40) . '.' . $file->getClientOriginalExtension();
+            Storage::disk('s3')->put($filename, file_get_contents($file), 'public');
+            $data['profile_image'] = $filename;
         }
 
         $user->update($data);
