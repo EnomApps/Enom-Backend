@@ -124,7 +124,7 @@ class PostController extends Controller
                 $ext      = $file->getClientOriginalExtension();
                 $type     = in_array($ext, ['mp4', 'mov']) ? 'video' : 'image';
                 $path     = 'post-media/' . Str::random(40) . '.' . $ext;
-                Storage::disk('s3')->put($path, file_get_contents($file), 'public');
+                Storage::disk('s3')->put($path, file_get_contents($file));
 
                 PostMedia::create([
                     'post_id' => $post->id,

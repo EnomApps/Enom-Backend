@@ -147,7 +147,7 @@ class ProfileController extends Controller
             }
             $file     = $request->file('profile_image');
             $filename = 'profile-images/' . Str::random(40) . '.' . $file->getClientOriginalExtension();
-            Storage::disk('s3')->put($filename, file_get_contents($file), 'public');
+            Storage::disk('s3')->put($filename, file_get_contents($file));
             $data['profile_image'] = $filename;
         }
 
