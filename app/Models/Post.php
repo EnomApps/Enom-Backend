@@ -36,4 +36,9 @@ class Post extends Model
     {
         return $this->hasMany(Reaction::class);
     }
+
+    public function views(): HasMany
+    {
+        return $this->hasMany(PostView::class);
+    }
 }

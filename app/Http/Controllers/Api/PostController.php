@@ -31,7 +31,7 @@ class PostController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Post::with(['user:id,name,username,profile_image', 'media'])
-            ->withCount(['comments', 'reactions']);
+            ->withCount(['comments', 'reactions', 'views']);
 
         if ($request->has('user_id')) {
             $query->where('user_id', $request->input('user_id'));
@@ -70,7 +70,7 @@ class PostController extends Controller
                     ->limit(20);
             },
             'reactions',
-        ])->withCount(['comments', 'reactions'])->findOrFail($id);
+        ])->withCount(['comments', 'reactions', 'views'])->findOrFail($id);
 
         return response()->json(['post' => $post]);
     }

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\FollowController;
 use App\Http\Controllers\Api\SavedPostController;
+use App\Http\Controllers\Api\PostViewController;
 
 // ─── Public Auth Routes ────────────────────────────────────────────────────
 Route::prefix('auth')->group(function () {
@@ -60,6 +61,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Device Tokens
     Route::post('/device-tokens',   [DeviceTokenController::class, 'store']);
     Route::delete('/device-tokens', [DeviceTokenController::class, 'destroy']);
+
+    // Post Views
+    Route::post('/posts/{postId}/view',  [PostViewController::class, 'store']);
+    Route::get('/posts/{postId}/views',  [PostViewController::class, 'count']);
 
     // Saved Posts
     Route::post('/posts/{postId}/save',        [SavedPostController::class, 'toggle']);
