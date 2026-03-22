@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/xampp/htdocs/enom -name .env* -o -name config.php)",
+      "Bash(git push:*)",
+      "Bash(cat c:/xampp/htdocs/enom/app/Models/*.php)"
+    ]
+  }
+}

@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\ReactionController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\DeviceTokenController;
+use App\Http\Controllers\Api\FollowController;
 
 // ─── Public Auth Routes ────────────────────────────────────────────────────
 Route::prefix('auth')->group(function () {
@@ -58,4 +59,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Device Tokens
     Route::post('/device-tokens',   [DeviceTokenController::class, 'store']);
     Route::delete('/device-tokens', [DeviceTokenController::class, 'destroy']);
+
+    // Follow
+    Route::post('/users/{userId}/follow',        [FollowController::class, 'toggle']);
+    Route::get('/users/{userId}/follow-status',   [FollowController::class, 'status']);
+    Route::get('/users/{userId}/followers',       [FollowController::class, 'followers']);
+    Route::get('/users/{userId}/following',       [FollowController::class, 'following']);
+    Route::get('/users/{userId}/follow-counts',   [FollowController::class, 'counts']);
 });
