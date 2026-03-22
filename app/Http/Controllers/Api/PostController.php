@@ -105,7 +105,7 @@ class PostController extends Controller
             'content'    => ['nullable', 'string', 'max:5000'],
             'visibility' => ['sometimes', 'in:public,private,followers'],
             'media'      => ['sometimes', 'array', 'max:10'],
-            'media.*'    => ['file', 'mimes:jpg,jpeg,png,webp,mp4,mov', 'max:20480'],
+            'media.*'    => ['file', 'mimes:jpg,jpeg,png,webp,mp4,mov', 'max:102400'],
         ]);
 
         if (!$request->input('content') && !$request->hasFile('media')) {
