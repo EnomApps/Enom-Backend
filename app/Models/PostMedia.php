@@ -17,6 +17,10 @@ class PostMedia extends Model
         'post_id',
         'type',
         'url',
+        'duration',
+        'size',
+        'width',
+        'height',
     ];
 
     public function post(): BelongsTo

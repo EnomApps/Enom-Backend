@@ -41,7 +41,8 @@ class PostController extends Controller
 
         $posts = $query->latest()->paginate(15);
 
-        return response()->json($posts);
+        return response()->json($posts)
+            ->header('Cache-Control', 'public, max-age=30');
     }
 
     // ─────────────────────────────────────────
@@ -121,16 +122,32 @@ class PostController extends Controller
         // Handle media uploads to S3
         if ($request->hasFile('media')) {
             foreach ($request->file('media') as $file) {
-                $ext      = $file->getClientOriginalExtension();
-                $type     = in_array($ext, ['mp4', 'mov']) ? 'video' : 'image';
-                $path     = 'post-media/' . Str::random(40) . '.' . $ext;
-                Storage::disk('s3')->put($path, file_get_contents($file));
+                $ext  = strtolower($file->getClientOriginalExtension());
+                $type = in_array($ext, ['mp4', 'mov']) ? 'video' : 'image';
+                $name = Str::random(40);
+                $path = 'post-media/' . $name . '.' . $ext;
+                $size = $file->getSize();
 
-                PostMedia::create([
+                // Stream file directly to S3 (memory efficient)
+                Storage::disk('s3')->putFileAs('post-media', $file, $name . '.' . $ext);
+
+                $mediaData = [
                     'post_id' => $post->id,
                     'type'    => $type,
                     'url'     => $path,
-                ]);
+                    'size'    => $size,
+                ];
+
+                // Get image dimensions
+                if ($type === 'image') {
+                    $dimensions = @getimagesize($file->getPathname());
+                    if ($dimensions) {
+                        $mediaData['width']  = $dimensions[0];
+                        $mediaData['height'] = $dimensions[1];
+                    }
+                }
+
+                PostMedia::create($mediaData);
             }
         }
 
