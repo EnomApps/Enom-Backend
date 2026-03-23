@@ -14,24 +14,36 @@ use OpenApi\Attributes as OA;
 class PostController extends Controller
 {
     // ─────────────────────────────────────────
-    // LIST POSTS (Feed)
+    // LIST POSTS (Feed) — Cursor Pagination
     // ─────────────────────────────────────────
     #[OA\Get(
         path: '/api/posts',
         operationId: 'listPosts',
-        summary: 'Get posts feed',
-        description: 'Returns paginated public posts. Pass user_id to get a specific user\'s posts.',
+        summary: 'Get posts feed (cursor-based pagination)',
+        description: 'Returns posts with cursor-based pagination. Use next_cursor from response to load more. Pass user_id for a specific user\'s posts.',
         tags: ['Posts'],
         security: [['bearerAuth' => []]]
     )]
     #[OA\Parameter(name: 'user_id', in: 'query', required: false, schema: new OA\Schema(type: 'integer'))]
-    #[OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 1))]
-    #[OA\Response(response: 200, description: 'Paginated posts')]
+    #[OA\Parameter(name: 'cursor', in: 'query', required: false, schema: new OA\Schema(type: 'string'), description: 'Cursor for next page')]
+    #[OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 15))]
+    #[OA\Response(response: 200, description: 'Paginated posts with cursor')]
     #[OA\Response(response: 401, description: 'Unauthenticated')]
     public function index(Request $request): JsonResponse
     {
-        $query = Post::with(['user:id,name,username,profile_image', 'media'])
-            ->withCount(['comments', 'reactions', 'views']);
+        $perPage = min((int) $request->input('per_page', 15), 50);
+        $authUserId = $request->user()->id;
+
+        $query = Post::with([
+                'user:id,name,username,profile_image',
+                'media:id,post_id,type,url,width,height',
+            ])
+            ->withCount(['comments', 'reactions', 'views'])
+            ->withExists([
+                'reactions as user_reacted' => function ($q) use ($authUserId) {
+                    $q->where('user_id', $authUserId);
+                },
+            ]);
 
         if ($request->has('user_id')) {
             $query->where('user_id', $request->input('user_id'));
@@ -39,7 +51,7 @@ class PostController extends Controller
             $query->where('visibility', 'public');
         }
 
-        $posts = $query->latest()->paginate(15);
+        $posts = $query->orderByDesc('id')->cursorPaginate($perPage);
 
         return response()->json($posts)
             ->header('Cache-Control', 'public, max-age=30');
@@ -58,19 +70,27 @@ class PostController extends Controller
     #[OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))]
     #[OA\Response(response: 200, description: 'Post details')]
     #[OA\Response(response: 404, description: 'Post not found')]
-    public function show(int $id): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
+        $authUserId = $request->user()->id;
+
         $post = Post::with([
             'user:id,name,username,profile_image',
-            'media',
+            'media:id,post_id,type,url,width,height',
             'comments' => function ($q) {
                 $q->whereNull('parent_id')
                     ->with(['user:id,name,username,profile_image', 'replies.user:id,name,username,profile_image'])
                     ->latest()
                     ->limit(20);
             },
-            'reactions',
-        ])->withCount(['comments', 'reactions', 'views'])->findOrFail($id);
+        ])
+        ->withCount(['comments', 'reactions', 'views'])
+        ->withExists([
+            'reactions as user_reacted' => function ($q) use ($authUserId) {
+                $q->where('user_id', $authUserId);
+            },
+        ])
+        ->findOrFail($id);
 
         return response()->json(['post' => $post]);
     }
