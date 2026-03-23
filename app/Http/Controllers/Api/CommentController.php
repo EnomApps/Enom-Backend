@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Comment;
 use App\Models\Post;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
@@ -77,6 +78,29 @@ class CommentController extends Controller
             'post_id'   => $postId,
             'parent_id' => $request->input('parent_id'),
             'content'   => $request->input('content'),
+        ]);
+
+        $post = Post::find($postId);
+        $userId = $request->user()->id;
+        $userName = $request->user()->name;
+
+        if ($request->input('parent_id')) {
+            // Reply notification to parent comment owner
+            $parentComment = Comment::find($request->input('parent_id'));
+            NotificationService::send($parentComment->user_id, 'reply', [
+                'from_user_id'   => $userId,
+                'from_user_name' => $userName,
+                'post_id'        => $postId,
+                'comment_id'     => $comment->id,
+            ]);
+        }
+
+        // Comment notification to post owner
+        NotificationService::send($post->user_id, 'comment', [
+            'from_user_id'   => $userId,
+            'from_user_name' => $userName,
+            'post_id'        => $postId,
+            'comment_id'     => $comment->id,
         ]);
 
         return response()->json([

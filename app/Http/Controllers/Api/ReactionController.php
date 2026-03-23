@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Post;
 use App\Models\Reaction;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
@@ -69,6 +70,14 @@ class ReactionController extends Controller
             'user_id' => $userId,
             'post_id' => $postId,
             'type'    => $type,
+        ]);
+
+        $post = Post::find($postId);
+        NotificationService::send($post->user_id, 'like', [
+            'from_user_id'   => $userId,
+            'from_user_name' => $request->user()->name,
+            'post_id'        => $postId,
+            'reaction_type'  => $type,
         ]);
 
         return response()->json([

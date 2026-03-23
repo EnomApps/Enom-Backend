@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Follow;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
@@ -50,6 +51,11 @@ class FollowController extends Controller
         Follow::create([
             'follower_id'  => $authUser->id,
             'following_id' => $userId,
+        ]);
+
+        NotificationService::send($userId, 'follow', [
+            'from_user_id'   => $authUser->id,
+            'from_user_name' => $authUser->name,
         ]);
 
         return response()->json([
