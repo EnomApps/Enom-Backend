@@ -7,6 +7,7 @@ use App\Models\Post;
 use App\Models\PostMedia;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
@@ -33,25 +34,39 @@ class PostController extends Controller
     {
         $perPage = min((int) $request->input('per_page', 15), 50);
         $authUserId = $request->user()->id;
+        $cursor = $request->input('cursor');
+        $userId = $request->input('user_id');
 
-        $query = Post::with([
-                'user:id,name,username,profile_image',
-                'media:id,post_id,type,url,width,height',
-            ])
-            ->withCount(['comments', 'reactions', 'views'])
-            ->withExists([
-                'reactions as user_reacted' => function ($q) use ($authUserId) {
-                    $q->where('user_id', $authUserId);
-                },
-            ]);
+        // Cache first page of public feed for 30 seconds
+        $useCache = !$cursor && !$userId;
+        $cacheKey = "feed:public:first:{$perPage}";
 
-        if ($request->has('user_id')) {
-            $query->where('user_id', $request->input('user_id'));
+        if ($useCache) {
+            $posts = Cache::remember($cacheKey, 30, function () use ($perPage) {
+                return Post::with([
+                        'user:id,name,username,profile_image',
+                        'media:id,post_id,type,url,width,height',
+                    ])
+                    ->withCount(['comments', 'reactions', 'views'])
+                    ->where('visibility', 'public')
+                    ->orderByDesc('id')
+                    ->cursorPaginate($perPage);
+            });
         } else {
-            $query->where('visibility', 'public');
-        }
+            $query = Post::with([
+                    'user:id,name,username,profile_image',
+                    'media:id,post_id,type,url,width,height',
+                ])
+                ->withCount(['comments', 'reactions', 'views']);
 
-        $posts = $query->orderByDesc('id')->cursorPaginate($perPage);
+            if ($userId) {
+                $query->where('user_id', $userId);
+            } else {
+                $query->where('visibility', 'public');
+            }
+
+            $posts = $query->orderByDesc('id')->cursorPaginate($perPage);
+        }
 
         return response()->json($posts)
             ->header('Cache-Control', 'public, max-age=30');
@@ -171,6 +186,9 @@ class PostController extends Controller
             }
         }
 
+        // Clear feed cache
+        Cache::forget('feed:public:first:15');
+
         return response()->json([
             'message' => 'Post created successfully.',
             'post'    => $post->load(['user:id,name,username,profile_image', 'media']),
@@ -248,6 +266,9 @@ class PostController extends Controller
         }
 
         $post->delete();
+
+        // Clear feed cache
+        Cache::forget('feed:public:first:15');
 
         return response()->json(['message' => 'Post deleted successfully.']);
     }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Interest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
@@ -54,7 +55,11 @@ class ProfileController extends Controller
     #[OA\Response(response: 401, description: 'Unauthenticated')]
     public function show(Request $request): JsonResponse
     {
-        $user = $request->user()->load('interests:id,name,category');
+        $userId = $request->user()->id;
+
+        $user = Cache::remember("profile:{$userId}", 60, function () use ($request) {
+            return $request->user()->load('interests:id,name,category');
+        });
 
         return response()->json(['user' => $user]);
     }
@@ -163,6 +168,9 @@ class ProfileController extends Controller
             $user->interests()->sync($validIds);
         }
 
+        // Clear profile cache
+        Cache::forget("profile:{$user->id}");
+
         return response()->json([
             'message' => 'Profile updated successfully.',
             'user'    => $user->fresh()->load('interests:id,name,category'),
@@ -190,8 +198,10 @@ class ProfileController extends Controller
     )]
     public function interests(): JsonResponse
     {
-        return response()->json([
-            'interests' => Interest::select('id', 'name', 'category')->orderBy('category')->get(),
-        ]);
+        $interests = Cache::remember('interests:all', 3600, function () {
+            return Interest::select('id', 'name', 'category')->orderBy('category')->get();
+        });
+
+        return response()->json(['interests' => $interests]);
     }
 }
