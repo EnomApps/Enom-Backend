@@ -10,6 +10,7 @@ use App\Models\Post;
 use App\Models\PostMedia;
 use App\Models\PostView;
 use App\Models\Reaction;
+use App\Services\ContentModerationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -54,6 +55,7 @@ class PostController extends Controller
                 'hashtags:id,name',
             ])
             ->withCount(['comments', 'reactions', 'views', 'reposts'])
+            ->where('moderation_status', 'approved')
             ->whereNotIn('user_id', $blockedIds);
 
         if ($userId) {
@@ -109,6 +111,7 @@ class PostController extends Controller
             ])
             ->withCount(['comments', 'reactions', 'views', 'reposts'])
             ->where('visibility', 'public')
+            ->where('moderation_status', 'approved')
             ->where('user_id', '!=', $authUserId)
             ->whereNotIn('user_id', $blockedIds)
             ->orderByRaw('
@@ -208,13 +211,41 @@ class PostController extends Controller
             return response()->json(['message' => 'Post must have content or media.'], 422);
         }
 
+        // Layer 1: Check text content for inappropriate language
+        $textCheck = ContentModerationService::checkText($request->input('content'));
+        if (!$textCheck['safe']) {
+            return response()->json([
+                'message' => 'Your post was rejected.',
+                'reason'  => $textCheck['reason'],
+            ], 422);
+        }
+
+        // Layer 2: Check images via AWS Rekognition (if enabled)
+        $moderationStatus = 'approved';
+        $moderationReason = null;
+
+        if ($request->hasFile('media')) {
+            $mediaCheck = ContentModerationService::checkMedia($request->file('media'));
+            if (!$mediaCheck['safe']) {
+                $moderationStatus = 'rejected';
+                $moderationReason = $mediaCheck['reason'];
+
+                return response()->json([
+                    'message' => 'Your post contains inappropriate content and has been rejected.',
+                    'reason'  => $mediaCheck['reason'],
+                ], 422);
+            }
+        }
+
         $post = Post::create([
-            'user_id'       => $request->user()->id,
-            'content'       => $request->input('content'),
-            'visibility'    => $request->input('visibility', 'public'),
-            'location_name' => $request->input('location_name'),
-            'latitude'      => $request->input('latitude'),
-            'longitude'     => $request->input('longitude'),
+            'user_id'           => $request->user()->id,
+            'content'           => $request->input('content'),
+            'visibility'        => $request->input('visibility', 'public'),
+            'location_name'     => $request->input('location_name'),
+            'latitude'          => $request->input('latitude'),
+            'longitude'         => $request->input('longitude'),
+            'moderation_status' => $moderationStatus,
+            'moderation_reason' => $moderationReason,
         ]);
 
         // Handle media uploads to S3

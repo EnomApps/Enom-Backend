@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'rekognition' => [
+        'enabled' => env('AWS_REKOGNITION_ENABLED', false),
+        'region'  => env('AWS_DEFAULT_REGION', 'ap-southeast-1'),
+    ],
+
 ];
