@@ -11,6 +11,9 @@ use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\FollowController;
 use App\Http\Controllers\Api\SavedPostController;
 use App\Http\Controllers\Api\PostViewController;
+use App\Http\Controllers\Api\SearchController;
+use App\Http\Controllers\Api\RepostController;
+use App\Http\Controllers\Api\BlockReportController;
 
 // ─── Public Auth Routes ────────────────────────────────────────────────────
 Route::prefix('auth')->group(function () {
@@ -36,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/user/profile', [ProfileController::class, 'update']);
 
     // Posts
+    Route::get('/posts/for-you',  [PostController::class, 'forYou']);
     Route::get('/posts',          [PostController::class, 'index']);
     Route::post('/posts',         [PostController::class, 'store']);
     Route::get('/posts/{id}',     [PostController::class, 'show']);
@@ -70,6 +74,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/posts/{postId}/save',        [SavedPostController::class, 'toggle']);
     Route::get('/posts/{postId}/save-status',   [SavedPostController::class, 'status']);
     Route::get('/saved-posts',                  [SavedPostController::class, 'index']);
+
+    // Repost
+    Route::post('/posts/{postId}/repost',  [RepostController::class, 'toggle']);
+    Route::get('/posts/{postId}/reposts',  [RepostController::class, 'index']);
+
+    // Search
+    Route::get('/search',              [SearchController::class, 'search']);
+    Route::get('/hashtags/{name}/posts', [SearchController::class, 'hashtagPosts']);
+    Route::get('/trending/hashtags',   [SearchController::class, 'trendingHashtags']);
+
+    // Block & Report
+    Route::post('/users/{userId}/block',       [BlockReportController::class, 'toggleBlock']);
+    Route::get('/users/{userId}/block-status', [BlockReportController::class, 'blockStatus']);
+    Route::get('/blocked-users',               [BlockReportController::class, 'blockedUsers']);
+    Route::post('/report',                     [BlockReportController::class, 'report']);
 
     // Follow
     Route::post('/users/{userId}/follow',        [FollowController::class, 'toggle']);

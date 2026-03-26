@@ -3,11 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Block;
+use App\Models\Follow;
+use App\Models\Hashtag;
 use App\Models\Post;
 use App\Models\PostMedia;
+use App\Models\PostView;
+use App\Models\Reaction;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
@@ -37,39 +43,86 @@ class PostController extends Controller
         $cursor = $request->input('cursor');
         $userId = $request->input('user_id');
 
-        // Cache first page of public feed for 30 seconds
-        $useCache = !$cursor && !$userId;
-        $cacheKey = "feed:public:first:{$perPage}";
+        // Get blocked user IDs
+        $blockedIds = Block::where('blocker_id', $authUserId)->pluck('blocked_id')
+            ->merge(Block::where('blocked_id', $authUserId)->pluck('blocker_id'))
+            ->unique()->toArray();
 
-        if ($useCache) {
-            $posts = Cache::remember($cacheKey, 30, function () use ($perPage) {
-                return Post::with([
-                        'user:id,name,username,profile_image',
-                        'media:id,post_id,type,url,width,height',
-                    ])
-                    ->withCount(['comments', 'reactions', 'views'])
-                    ->where('visibility', 'public')
-                    ->orderByDesc('id')
-                    ->cursorPaginate($perPage);
-            });
+        $query = Post::with([
+                'user:id,name,username,profile_image',
+                'media:id,post_id,type,url,width,height',
+                'hashtags:id,name',
+            ])
+            ->withCount(['comments', 'reactions', 'views', 'reposts'])
+            ->whereNotIn('user_id', $blockedIds);
+
+        if ($userId) {
+            $query->where('user_id', $userId);
         } else {
-            $query = Post::with([
-                    'user:id,name,username,profile_image',
-                    'media:id,post_id,type,url,width,height',
-                ])
-                ->withCount(['comments', 'reactions', 'views']);
-
-            if ($userId) {
-                $query->where('user_id', $userId);
-            } else {
-                $query->where('visibility', 'public');
-            }
-
-            $posts = $query->orderByDesc('id')->cursorPaginate($perPage);
+            $query->where('visibility', 'public');
         }
+
+        $posts = $query->orderByDesc('id')->cursorPaginate($perPage);
 
         return response()->json($posts)
             ->header('Cache-Control', 'public, max-age=30');
+    }
+
+    // ─────────────────────────────────────────
+    // FOR YOU FEED (Algorithm-based)
+    // ─────────────────────────────────────────
+    #[OA\Get(
+        path: '/api/posts/for-you',
+        operationId: 'forYouFeed',
+        summary: 'Get personalized "For You" feed',
+        description: 'Returns posts ranked by engagement (views, likes, comments) mixed with posts from followed users and matching interests.',
+        tags: ['Posts'],
+        security: [['bearerAuth' => []]]
+    )]
+    #[OA\Parameter(name: 'cursor', in: 'query', required: false, schema: new OA\Schema(type: 'string'))]
+    #[OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 15))]
+    #[OA\Response(response: 200, description: 'Personalized feed')]
+    public function forYou(Request $request): JsonResponse
+    {
+        $perPage = min((int) $request->input('per_page', 15), 50);
+        $authUserId = $request->user()->id;
+
+        // Get blocked user IDs
+        $blockedIds = Block::where('blocker_id', $authUserId)->pluck('blocked_id')
+            ->merge(Block::where('blocked_id', $authUserId)->pluck('blocker_id'))
+            ->unique()->toArray();
+
+        // Get followed user IDs
+        $followingIds = Follow::where('follower_id', $authUserId)->pluck('following_id')->toArray();
+
+        // Get IDs of posts the user already viewed
+        $viewedPostIds = PostView::where('user_id', $authUserId)->pluck('post_id')->toArray();
+
+        // Score-based ranking:
+        // - Posts from followed users get a boost
+        // - Posts with more engagement rank higher
+        // - Unseen posts rank higher
+        $posts = Post::with([
+                'user:id,name,username,profile_image',
+                'media:id,post_id,type,url,width,height',
+                'hashtags:id,name',
+            ])
+            ->withCount(['comments', 'reactions', 'views', 'reposts'])
+            ->where('visibility', 'public')
+            ->where('user_id', '!=', $authUserId)
+            ->whereNotIn('user_id', $blockedIds)
+            ->orderByRaw('
+                (CASE WHEN user_id IN (' . (count($followingIds) ? implode(',', $followingIds) : '0') . ') THEN 50 ELSE 0 END)
+                + (CASE WHEN id NOT IN (' . (count($viewedPostIds) ? implode(',', $viewedPostIds) : '0') . ') THEN 30 ELSE 0 END)
+                + LEAST(reactions_count * 3, 30)
+                + LEAST(comments_count * 2, 20)
+                + LEAST(views_count, 20)
+                DESC
+            ')
+            ->orderByDesc('id')
+            ->cursorPaginate($perPage);
+
+        return response()->json($posts);
     }
 
     // ─────────────────────────────────────────
@@ -92,6 +145,7 @@ class PostController extends Controller
         $post = Post::with([
             'user:id,name,username,profile_image',
             'media:id,post_id,type,url,width,height',
+            'hashtags:id,name',
             'comments' => function ($q) {
                 $q->whereNull('parent_id')
                     ->with(['user:id,name,username,profile_image', 'replies.user:id,name,username,profile_image'])
@@ -99,7 +153,7 @@ class PostController extends Controller
                     ->limit(20);
             },
         ])
-        ->withCount(['comments', 'reactions', 'views'])
+        ->withCount(['comments', 'reactions', 'views', 'reposts'])
         ->withExists([
             'reactions as user_reacted' => function ($q) use ($authUserId) {
                 $q->where('user_id', $authUserId);
@@ -186,12 +240,15 @@ class PostController extends Controller
             }
         }
 
+        // Extract and sync hashtags from content
+        $this->syncHashtags($post);
+
         // Clear feed cache
         Cache::forget('feed:public:first:15');
 
         return response()->json([
             'message' => 'Post created successfully.',
-            'post'    => $post->load(['user:id,name,username,profile_image', 'media']),
+            'post'    => $post->load(['user:id,name,username,profile_image', 'media', 'hashtags:id,name']),
         ], 201);
     }
 
@@ -232,9 +289,14 @@ class PostController extends Controller
 
         $post->update($request->only(['content', 'visibility']));
 
+        // Re-sync hashtags if content changed
+        if ($request->has('content')) {
+            $this->syncHashtags($post);
+        }
+
         return response()->json([
             'message' => 'Post updated successfully.',
-            'post'    => $post->load(['user:id,name,username,profile_image', 'media']),
+            'post'    => $post->load(['user:id,name,username,profile_image', 'media', 'hashtags:id,name']),
         ]);
     }
 
@@ -271,5 +333,37 @@ class PostController extends Controller
         Cache::forget('feed:public:first:15');
 
         return response()->json(['message' => 'Post deleted successfully.']);
+    }
+
+    // ─────────────────────────────────────────
+    // EXTRACT & SYNC HASHTAGS
+    // ─────────────────────────────────────────
+    private function syncHashtags(Post $post): void
+    {
+        if (!$post->content) {
+            $post->hashtags()->detach();
+            return;
+        }
+
+        preg_match_all('/#(\w+)/u', $post->content, $matches);
+        $tags = array_slice(array_unique(array_map('strtolower', $matches[1] ?? [])), 0, 5);
+
+        if (empty($tags)) {
+            $post->hashtags()->detach();
+            return;
+        }
+
+        $hashtagIds = [];
+        foreach ($tags as $tag) {
+            $hashtag = Hashtag::firstOrCreate(['name' => $tag]);
+            $hashtagIds[] = $hashtag->id;
+        }
+
+        $post->hashtags()->sync($hashtagIds);
+
+        // Update posts_count for all hashtags
+        Hashtag::whereIn('id', $hashtagIds)->each(function ($hashtag) {
+            $hashtag->update(['posts_count' => $hashtag->posts()->count()]);
+        });
     }
 }
