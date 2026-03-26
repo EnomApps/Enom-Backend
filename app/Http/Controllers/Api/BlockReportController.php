@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Block;
+use App\Models\Comment;
 use App\Models\Follow;
+use App\Models\Post;
 use App\Models\Report;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -150,6 +152,22 @@ class BlockReportController extends Controller
             'reason'          => $request->input('reason'),
             'description'     => $request->input('description'),
         ]);
+
+        // Auto-hide post/comment if 3+ unique reports
+        $reportCount = Report::where('reportable_type', $reportableType)
+            ->where('reportable_id', $reportableId)
+            ->count();
+
+        if ($reportCount >= 3) {
+            if ($request->input('type') === 'post') {
+                Post::where('id', $reportableId)->update([
+                    'moderation_status' => 'pending_review',
+                    'moderation_reason' => "Auto-flagged: {$reportCount} reports received",
+                ]);
+            } elseif ($request->input('type') === 'comment') {
+                Comment::where('id', $reportableId)->delete();
+            }
+        }
 
         return response()->json(['message' => 'Report submitted. We will review it shortly.'], 201);
     }
