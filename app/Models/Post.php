@@ -16,6 +16,9 @@ class Post extends Model
         'user_id',
         'content',
         'visibility',
+        'location_name',
+        'latitude',
+        'longitude',
     ];
 
     public function user(): BelongsTo

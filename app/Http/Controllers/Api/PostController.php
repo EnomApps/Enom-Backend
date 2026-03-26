@@ -182,6 +182,9 @@ class PostController extends Controller
                 properties: [
                     new OA\Property(property: 'content', type: 'string', example: 'Hello world!'),
                     new OA\Property(property: 'visibility', type: 'string', enum: ['public', 'private', 'followers'], example: 'public'),
+                    new OA\Property(property: 'location_name', type: 'string', nullable: true, example: 'Chennai, India'),
+                    new OA\Property(property: 'latitude', type: 'number', format: 'float', nullable: true, example: 13.0827),
+                    new OA\Property(property: 'longitude', type: 'number', format: 'float', nullable: true, example: 80.2707),
                     new OA\Property(property: 'media[]', type: 'array', items: new OA\Items(type: 'string', format: 'binary'), description: 'Upload images/videos (max 10)'),
                 ]
             )
@@ -192,10 +195,13 @@ class PostController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'content'    => ['nullable', 'string', 'max:5000'],
-            'visibility' => ['sometimes', 'in:public,private,followers'],
-            'media'      => ['sometimes', 'array', 'max:10'],
-            'media.*'    => ['file', 'mimes:jpg,jpeg,png,webp,mp4,mov', 'max:102400'],
+            'content'       => ['nullable', 'string', 'max:5000'],
+            'visibility'    => ['sometimes', 'in:public,private,followers'],
+            'location_name' => ['nullable', 'string', 'max:255'],
+            'latitude'      => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude'     => ['nullable', 'numeric', 'between:-180,180'],
+            'media'         => ['sometimes', 'array', 'max:10'],
+            'media.*'       => ['file', 'mimes:jpg,jpeg,png,webp,mp4,mov', 'max:102400'],
         ]);
 
         if (!$request->input('content') && !$request->hasFile('media')) {
@@ -203,9 +209,12 @@ class PostController extends Controller
         }
 
         $post = Post::create([
-            'user_id'    => $request->user()->id,
-            'content'    => $request->input('content'),
-            'visibility' => $request->input('visibility', 'public'),
+            'user_id'       => $request->user()->id,
+            'content'       => $request->input('content'),
+            'visibility'    => $request->input('visibility', 'public'),
+            'location_name' => $request->input('location_name'),
+            'latitude'      => $request->input('latitude'),
+            'longitude'     => $request->input('longitude'),
         ]);
 
         // Handle media uploads to S3
@@ -268,6 +277,9 @@ class PostController extends Controller
             properties: [
                 new OA\Property(property: 'content', type: 'string', example: 'Updated content'),
                 new OA\Property(property: 'visibility', type: 'string', enum: ['public', 'private', 'followers']),
+                new OA\Property(property: 'location_name', type: 'string', nullable: true, example: 'Mumbai, India'),
+                new OA\Property(property: 'latitude', type: 'number', format: 'float', nullable: true),
+                new OA\Property(property: 'longitude', type: 'number', format: 'float', nullable: true),
             ]
         )
     )]
@@ -283,11 +295,14 @@ class PostController extends Controller
         }
 
         $request->validate([
-            'content'    => ['nullable', 'string', 'max:5000'],
-            'visibility' => ['sometimes', 'in:public,private,followers'],
+            'content'       => ['nullable', 'string', 'max:5000'],
+            'visibility'    => ['sometimes', 'in:public,private,followers'],
+            'location_name' => ['nullable', 'string', 'max:255'],
+            'latitude'      => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude'     => ['nullable', 'numeric', 'between:-180,180'],
         ]);
 
-        $post->update($request->only(['content', 'visibility']));
+        $post->update($request->only(['content', 'visibility', 'location_name', 'latitude', 'longitude']));
 
         // Re-sync hashtags if content changed
         if ($request->has('content')) {
