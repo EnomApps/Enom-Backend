@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Comment;
+use App\Models\CommentLike;
 use App\Models\Post;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
@@ -35,6 +36,7 @@ class CommentController extends Controller
                 'user:id,name,username,profile_image',
                 'replies.user:id,name,username,profile_image',
             ])
+            ->withCount('likes')
             ->latest()
             ->paginate(20);
 
@@ -175,5 +177,77 @@ class CommentController extends Controller
         $comment->delete();
 
         return response()->json(['message' => 'Comment deleted successfully.']);
+    }
+
+    // ─────────────────────────────────────────
+    // TOGGLE LIKE ON COMMENT
+    // ─────────────────────────────────────────
+    #[OA\Post(
+        path: '/api/comments/{id}/like',
+        operationId: 'toggleCommentLike',
+        summary: 'Like or unlike a comment',
+        tags: ['Comments'],
+        security: [['bearerAuth' => []]]
+    )]
+    #[OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))]
+    #[OA\Response(response: 200, description: 'Like toggled')]
+    #[OA\Response(response: 404, description: 'Comment not found')]
+    public function toggleLike(Request $request, int $id): JsonResponse
+    {
+        $comment = Comment::findOrFail($id);
+        $userId = $request->user()->id;
+
+        $existing = CommentLike::where('user_id', $userId)->where('comment_id', $id)->first();
+
+        if ($existing) {
+            $existing->delete();
+            return response()->json([
+                'message'     => 'Comment unliked.',
+                'liked'       => false,
+                'likes_count' => CommentLike::where('comment_id', $id)->count(),
+            ]);
+        }
+
+        CommentLike::create(['user_id' => $userId, 'comment_id' => $id]);
+
+        // Notify comment owner
+        if ($comment->user_id !== $userId) {
+            NotificationService::send($comment->user_id, 'comment_like', [
+                'from_user_id'   => $userId,
+                'from_user_name' => $request->user()->name,
+                'post_id'        => $comment->post_id,
+                'comment_id'     => $id,
+            ]);
+        }
+
+        return response()->json([
+            'message'     => 'Comment liked.',
+            'liked'       => true,
+            'likes_count' => CommentLike::where('comment_id', $id)->count(),
+        ]);
+    }
+
+    // ─────────────────────────────────────────
+    // LIST WHO LIKED A COMMENT
+    // ─────────────────────────────────────────
+    #[OA\Get(
+        path: '/api/comments/{id}/likes',
+        operationId: 'listCommentLikes',
+        summary: 'Get users who liked a comment',
+        tags: ['Comments'],
+        security: [['bearerAuth' => []]]
+    )]
+    #[OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))]
+    #[OA\Response(response: 200, description: 'List of likes')]
+    public function likes(int $id): JsonResponse
+    {
+        Comment::findOrFail($id);
+
+        $likes = CommentLike::where('comment_id', $id)
+            ->with('user:id,name,username,profile_image')
+            ->latest()
+            ->paginate(20);
+
+        return response()->json($likes);
     }
 }
