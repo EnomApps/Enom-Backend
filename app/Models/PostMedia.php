@@ -17,6 +17,7 @@ class PostMedia extends Model
         'post_id',
         'type',
         'url',
+        'thumbnail_url',
         'duration',
         'size',
         'width',
@@ -31,5 +32,10 @@ class PostMedia extends Model
     public function getUrlAttribute($value): string
     {
         return Storage::disk('s3')->url($value);
+    }
+
+    public function getThumbnailUrlAttribute($value): ?string
+    {
+        return $value ? Storage::disk('s3')->url($value) : null;
     }
 }

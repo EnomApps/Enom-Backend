@@ -51,7 +51,7 @@ class PostController extends Controller
 
         $query = Post::with([
                 'user:id,name,username,profile_image',
-                'media:id,post_id,type,url,width,height',
+                'media:id,post_id,type,url,thumbnail_url,width,height',
                 'hashtags:id,name',
             ])
             ->withCount(['comments', 'reactions', 'views', 'reposts'])
@@ -106,7 +106,7 @@ class PostController extends Controller
         // - Unseen posts rank higher
         $posts = Post::with([
                 'user:id,name,username,profile_image',
-                'media:id,post_id,type,url,width,height',
+                'media:id,post_id,type,url,thumbnail_url,width,height',
                 'hashtags:id,name',
             ])
             ->withCount(['comments', 'reactions', 'views', 'reposts'])
@@ -147,7 +147,7 @@ class PostController extends Controller
 
         $post = Post::with([
             'user:id,name,username,profile_image',
-            'media:id,post_id,type,url,width,height',
+            'media:id,post_id,type,url,thumbnail_url,width,height',
             'hashtags:id,name',
             'comments' => function ($q) {
                 $q->whereNull('parent_id')
@@ -189,6 +189,7 @@ class PostController extends Controller
                     new OA\Property(property: 'latitude', type: 'number', format: 'float', nullable: true, example: 13.0827),
                     new OA\Property(property: 'longitude', type: 'number', format: 'float', nullable: true, example: 80.2707),
                     new OA\Property(property: 'media[]', type: 'array', items: new OA\Items(type: 'string', format: 'binary'), description: 'Upload images/videos (max 10)'),
+                    new OA\Property(property: 'thumbnails[]', type: 'array', items: new OA\Items(type: 'string', format: 'binary'), description: 'Video thumbnails (one per video, max 2MB each)'),
                 ]
             )
         )
@@ -205,6 +206,8 @@ class PostController extends Controller
             'longitude'     => ['nullable', 'numeric', 'between:-180,180'],
             'media'         => ['sometimes', 'array', 'max:10'],
             'media.*'       => ['file', 'mimes:jpg,jpeg,png,webp,mp4,mov', 'max:102400'],
+            'thumbnails'    => ['sometimes', 'array', 'max:10'],
+            'thumbnails.*'  => ['file', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ]);
 
         if (!$request->input('content') && !$request->hasFile('media')) {
@@ -250,6 +253,9 @@ class PostController extends Controller
 
         // Handle media uploads to S3
         if ($request->hasFile('media')) {
+            $thumbnails = $request->file('thumbnails', []);
+            $videoIndex = 0;
+
             foreach ($request->file('media') as $file) {
                 $ext  = strtolower($file->getClientOriginalExtension());
                 $type = in_array($ext, ['mp4', 'mov']) ? 'video' : 'image';
@@ -274,6 +280,15 @@ class PostController extends Controller
                         $mediaData['width']  = $dimensions[0];
                         $mediaData['height'] = $dimensions[1];
                     }
+                }
+
+                // Handle video thumbnail
+                if ($type === 'video' && isset($thumbnails[$videoIndex])) {
+                    $thumb = $thumbnails[$videoIndex];
+                    $thumbName = 'thumbnails/' . Str::random(40) . '.' . $thumb->getClientOriginalExtension();
+                    Storage::disk('s3')->putFileAs('thumbnails', $thumb, basename($thumbName));
+                    $mediaData['thumbnail_url'] = $thumbName;
+                    $videoIndex++;
                 }
 
                 PostMedia::create($mediaData);
