@@ -88,6 +88,7 @@ class PostController extends Controller
     {
         $perPage = min((int) $request->input('per_page', 15), 50);
         $authUserId = $request->user()->id;
+        $user = $request->user();
 
         // Get blocked user IDs
         $blockedIds = Block::where('blocker_id', $authUserId)->pluck('blocked_id')
@@ -100,10 +101,53 @@ class PostController extends Controller
         // Get IDs of posts the user already viewed
         $viewedPostIds = PostView::where('user_id', $authUserId)->pluck('post_id')->toArray();
 
+        // Get user's interest names (lowercase) for matching with hashtags
+        $userInterests = $user->interests()->pluck('name')
+            ->map(fn($name) => strtolower($name))
+            ->toArray();
+
+        // Get post IDs that match user's interests via hashtags
+        $interestPostIds = [];
+        if (!empty($userInterests)) {
+            $interestPostIds = DB::table('hashtag_post')
+                ->join('hashtags', 'hashtags.id', '=', 'hashtag_post.hashtag_id')
+                ->whereIn('hashtags.name', $userInterests)
+                ->pluck('hashtag_post.post_id')
+                ->unique()
+                ->toArray();
+        }
+
+        // Get post IDs the user has liked (show similar content)
+        $likedPostIds = Reaction::where('user_id', $authUserId)->pluck('post_id')->toArray();
+
+        // Get hashtags from liked posts to find similar content
+        $likedHashtagPostIds = [];
+        if (!empty($likedPostIds)) {
+            $likedHashtagIds = DB::table('hashtag_post')
+                ->whereIn('post_id', $likedPostIds)
+                ->pluck('hashtag_id')
+                ->unique()
+                ->toArray();
+
+            if (!empty($likedHashtagIds)) {
+                $likedHashtagPostIds = DB::table('hashtag_post')
+                    ->whereIn('hashtag_id', $likedHashtagIds)
+                    ->whereNotIn('post_id', $likedPostIds)
+                    ->pluck('post_id')
+                    ->unique()
+                    ->toArray();
+            }
+        }
+
         // Score-based ranking:
-        // - Posts from followed users get a boost
-        // - Posts with more engagement rank higher
-        // - Unseen posts rank higher
+        // +50: Posts from followed users
+        // +40: Posts matching user's interests
+        // +30: Unseen posts
+        // +25: Posts similar to what user liked
+        // +30 max: Reactions (3 pts each)
+        // +20 max: Comments (2 pts each)
+        // +20 max: Views (1 pt each)
+        // Max possible score: 215
         $posts = Post::with([
                 'user:id,name,username,profile_image',
                 'media:id,post_id,type,url,thumbnail_url,width,height',
@@ -116,7 +160,9 @@ class PostController extends Controller
             ->whereNotIn('user_id', $blockedIds)
             ->orderByRaw('
                 (CASE WHEN user_id IN (' . (count($followingIds) ? implode(',', $followingIds) : '0') . ') THEN 50 ELSE 0 END)
+                + (CASE WHEN id IN (' . (count($interestPostIds) ? implode(',', $interestPostIds) : '0') . ') THEN 40 ELSE 0 END)
                 + (CASE WHEN id NOT IN (' . (count($viewedPostIds) ? implode(',', $viewedPostIds) : '0') . ') THEN 30 ELSE 0 END)
+                + (CASE WHEN id IN (' . (count($likedHashtagPostIds) ? implode(',', $likedHashtagPostIds) : '0') . ') THEN 25 ELSE 0 END)
                 + LEAST(reactions_count * 3, 30)
                 + LEAST(comments_count * 2, 20)
                 + LEAST(views_count, 20)
