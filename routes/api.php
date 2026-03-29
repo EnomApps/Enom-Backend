@@ -45,6 +45,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/posts/{id}',     [PostController::class, 'show']);
     Route::put('/posts/{id}',     [PostController::class, 'update']);
     Route::delete('/posts/{id}',  [PostController::class, 'destroy']);
+    Route::get('/posts/{id}/share-link', [PostController::class, 'shareLink']);
 
     // Comments
     Route::get('/posts/{postId}/comments',  [CommentController::class, 'index']);

@@ -397,6 +397,39 @@ class PostController extends Controller
     }
 
     // ─────────────────────────────────────────
+    // SHARE LINK
+    // ─────────────────────────────────────────
+    #[OA\Get(
+        path: '/api/posts/{id}/share-link',
+        operationId: 'getShareLink',
+        summary: 'Get shareable link for a post',
+        tags: ['Posts'],
+        security: [['bearerAuth' => []]]
+    )]
+    #[OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))]
+    #[OA\Response(response: 200, description: 'Share link',
+        content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'share_url', type: 'string', example: 'https://api.enom.ai/post/28'),
+            new OA\Property(property: 'message', type: 'string', example: 'Check this out on ENOM!'),
+        ])
+    )]
+    #[OA\Response(response: 404, description: 'Post not found')]
+    public function shareLink(int $id): JsonResponse
+    {
+        $post = Post::with('user:id,name,username')->findOrFail($id);
+
+        $shareUrl = config('app.url') . '/post/' . $post->id;
+        $content = $post->content ? Str::limit($post->content, 100) : 'Check this out!';
+
+        return response()->json([
+            'share_url' => $shareUrl,
+            'message'   => $content . ' — shared via ENOM',
+            'post_id'   => $post->id,
+            'user_name' => $post->user->name,
+        ]);
+    }
+
+    // ─────────────────────────────────────────
     // EXTRACT & SYNC HASHTAGS
     // ─────────────────────────────────────────
     private function syncHashtags(Post $post): void
