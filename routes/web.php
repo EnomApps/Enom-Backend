@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Post;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
@@ -26,6 +27,24 @@ Route::get('/post/{id}', function (int $id) {
     $deepLink = 'enom://post/' . $post->id;
 
     return response()->view('share.post', compact('post', 'title', 'description', 'image', 'deepLink'));
+});
+
+// Share profile page
+Route::get('/user/{username}', function (string $username) {
+    $user = User::where('username', $username)->orWhere('id', $username)
+        ->withCount(['posts', 'followers', 'following'])
+        ->first();
+
+    if (!$user) {
+        abort(404);
+    }
+
+    $title = $user->name . ' (@' . ($user->username ?? $user->id) . ') on ENOM';
+    $description = $user->bio ?? 'Check out ' . $user->name . ' on ENOM';
+    $image = $user->profile_image_url ?? '';
+    $deepLink = 'enom://user/' . $user->id;
+
+    return response()->view('share.profile', compact('user', 'title', 'description', 'image', 'deepLink'));
 });
 
 Route::get('/profile-images/{filename}', function (string $filename) {

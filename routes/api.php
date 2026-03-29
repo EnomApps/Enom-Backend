@@ -78,6 +78,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/posts/{postId}/save-status',   [SavedPostController::class, 'status']);
     Route::get('/saved-posts',                  [SavedPostController::class, 'index']);
 
+    // User Profile (public)
+    Route::get('/users/{userId}/profile',    [ProfileController::class, 'viewProfile']);
+    Route::get('/users/{userId}/share-link', [ProfileController::class, 'shareLink']);
+
     // Repost
     Route::post('/posts/{postId}/repost',  [RepostController::class, 'toggle']);
     Route::get('/posts/{postId}/reposts',  [RepostController::class, 'index']);

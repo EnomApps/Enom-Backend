@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Follow;
 use App\Models\Interest;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -203,5 +205,62 @@ class ProfileController extends Controller
         });
 
         return response()->json(['interests' => $interests]);
+    }
+
+    // ─────────────────────────────────────────
+    // VIEW OTHER USER'S PROFILE
+    // ─────────────────────────────────────────
+    #[OA\Get(
+        path: '/api/users/{userId}/profile',
+        operationId: 'viewUserProfile',
+        summary: 'View another user\'s public profile',
+        tags: ['Profile'],
+        security: [['bearerAuth' => []]]
+    )]
+    #[OA\Parameter(name: 'userId', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))]
+    #[OA\Response(response: 200, description: 'User profile')]
+    #[OA\Response(response: 404, description: 'User not found')]
+    public function viewProfile(Request $request, int $userId): JsonResponse
+    {
+        $user = User::select('id', 'name', 'username', 'bio', 'profile_image', 'profession', 'country', 'city')
+            ->withCount(['posts', 'followers', 'following'])
+            ->findOrFail($userId);
+
+        $isFollowing = Follow::where('follower_id', $request->user()->id)
+            ->where('following_id', $userId)
+            ->exists();
+
+        return response()->json([
+            'user' => $user,
+            'is_following' => $isFollowing,
+        ]);
+    }
+
+    // ─────────────────────────────────────────
+    // SHARE PROFILE LINK
+    // ─────────────────────────────────────────
+    #[OA\Get(
+        path: '/api/users/{userId}/share-link',
+        operationId: 'shareProfileLink',
+        summary: 'Get shareable link for a user profile',
+        tags: ['Profile'],
+        security: [['bearerAuth' => []]]
+    )]
+    #[OA\Parameter(name: 'userId', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))]
+    #[OA\Response(response: 200, description: 'Profile share link')]
+    #[OA\Response(response: 404, description: 'User not found')]
+    public function shareLink(int $userId): JsonResponse
+    {
+        $user = User::select('id', 'name', 'username', 'bio', 'profile_image')->findOrFail($userId);
+
+        $shareUrl = config('app.url') . '/user/' . ($user->username ?? $user->id);
+        $message = $user->bio ? Str::limit($user->bio, 100) : 'Check out ' . $user->name . ' on ENOM';
+
+        return response()->json([
+            'share_url' => $shareUrl,
+            'message'   => $message . ' — shared via ENOM',
+            'user_id'   => $user->id,
+            'user_name' => $user->name,
+        ]);
     }
 }
