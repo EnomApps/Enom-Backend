@@ -55,9 +55,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/comments/{id}/like',      [CommentController::class, 'toggleLike']);
     Route::get('/comments/{id}/likes',      [CommentController::class, 'likes']);
 
-    // Reactions
-    Route::get('/posts/{postId}/reactions',  [ReactionController::class, 'index']);
-    Route::post('/posts/{postId}/reactions', [ReactionController::class, 'toggle']);
+    // Reactions (Like + Facebook-style reactions)
+    Route::post('/posts/{postId}/like',        [ReactionController::class, 'toggleLike']);
+    Route::post('/posts/{postId}/react',       [ReactionController::class, 'toggleReaction']);
+    Route::get('/posts/{postId}/like-status',  [ReactionController::class, 'status']);
+    Route::get('/posts/{postId}/likes',        [ReactionController::class, 'index']);
 
     // Notifications
     Route::get('/notifications',              [NotificationController::class, 'index']);
