@@ -57,12 +57,14 @@ class NotificationService
 
         foreach ($tokens as $token) {
             try {
-                $message = CloudMessage::withTarget('token', $token)
+                $message = CloudMessage::new()
+                    ->toToken($token)
                     ->withNotification(FcmNotification::create($title, $body))
                     ->withData($fcmData);
 
                 $messaging->send($message);
-            } catch (\Kreait\Firebase\Exception\Messaging\NotFound $e) {
+            } catch (\Kreait\Firebase\Exception\Messaging\NotFound
+                   | \Kreait\Firebase\Exception\Messaging\InvalidMessage $e) {
                 // Token is invalid/expired, remove it
                 DeviceToken::where('token', $token)->delete();
                 Log::info('Removed invalid FCM token: ' . $token);
@@ -75,11 +77,13 @@ class NotificationService
     private static function getTitle(string $type): string
     {
         return match ($type) {
-            'like'    => 'New Like',
-            'comment' => 'New Comment',
-            'follow'  => 'New Follower',
-            'reply'   => 'New Reply',
-            default   => 'Notification',
+            'like'         => 'New Like',
+            'comment'      => 'New Comment',
+            'follow'       => 'New Follower',
+            'reply'        => 'New Reply',
+            'repost'       => 'Reposted',
+            'comment_like' => 'Comment Liked',
+            default        => 'Notification',
         };
     }
 
@@ -88,11 +92,13 @@ class NotificationService
         $name = $data['from_user_name'] ?? 'Someone';
 
         return match ($type) {
-            'like'    => "{$name} liked your post.",
-            'comment' => "{$name} commented on your post.",
-            'follow'  => "{$name} started following you.",
-            'reply'   => "{$name} replied to your comment.",
-            default   => 'You have a new notification.',
+            'like'         => "{$name} liked your post.",
+            'comment'      => "{$name} commented on your post.",
+            'follow'       => "{$name} started following you.",
+            'reply'        => "{$name} replied to your comment.",
+            'repost'       => "{$name} reposted your post.",
+            'comment_like' => "{$name} liked your comment.",
+            default        => 'You have a new notification.',
         };
     }
 }
