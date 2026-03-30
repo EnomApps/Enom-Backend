@@ -60,7 +60,9 @@ class ProfileController extends Controller
         $userId = $request->user()->id;
 
         $user = Cache::remember("profile:{$userId}", 60, function () use ($request) {
-            return $request->user()->load('interests:id,name,category');
+            return $request->user()
+                ->loadCount(['posts', 'followers', 'following'])
+                ->load('interests:id,name,category');
         });
 
         return response()->json(['user' => $user]);
