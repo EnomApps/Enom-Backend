@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Mail\OtpMail;
+use App\Models\DeviceToken;
 use App\Models\OtpVerification;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -198,8 +199,10 @@ class AuthController extends Controller
             schema: new OA\Schema(
                 required: ['email', 'password'],
                 properties: [
-                    new OA\Property(property: 'email',    type: 'string', format: 'email',    example: 'john@example.com'),
-                    new OA\Property(property: 'password', type: 'string', format: 'password', example: 'password123'),
+                    new OA\Property(property: 'email',        type: 'string', format: 'email',    example: 'john@example.com'),
+                    new OA\Property(property: 'password',     type: 'string', format: 'password', example: 'password123'),
+                    new OA\Property(property: 'device_token', type: 'string', nullable: true, example: 'fcm_token_here', description: 'FCM device token for push notifications'),
+                    new OA\Property(property: 'platform',     type: 'string', nullable: true, enum: ['android', 'ios', 'web'], example: 'android'),
                 ]
             )
         )
@@ -224,8 +227,10 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $request->validate([
-            'email'    => ['required', 'email'],
-            'password' => ['required'],
+            'email'        => ['required', 'email'],
+            'password'     => ['required'],
+            'device_token' => ['nullable', 'string'],
+            'platform'     => ['nullable', 'string', 'in:android,ios,web'],
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -247,6 +252,17 @@ class AuthController extends Controller
         }
 
         $user->update(['last_login_at' => now()]);
+
+        // Save device token for push notifications
+        if ($request->filled('device_token')) {
+            DeviceToken::updateOrCreate(
+                ['token' => $request->input('device_token')],
+                [
+                    'user_id'  => $user->id,
+                    'platform' => $request->input('platform', 'android'),
+                ]
+            );
+        }
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -432,6 +448,11 @@ class AuthController extends Controller
     #[OA\Response(response: 401, description: 'Unauthenticated')]
     public function logout(Request $request): JsonResponse
     {
+        // Remove device token if provided
+        if ($request->filled('device_token')) {
+            DeviceToken::where('token', $request->input('device_token'))->delete();
+        }
+
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Logged out successfully.']);
