@@ -53,6 +53,9 @@ class PostController extends Controller
                 'user:id,name,username,profile_image',
                 'media:id,post_id,type,url,thumbnail_url,width,height',
                 'hashtags:id,name',
+                'reactions' => function ($q) use ($authUserId) {
+                    $q->where('user_id', $authUserId)->select('id', 'post_id', 'type');
+                },
             ])
             ->withCount(['comments', 'reactions', 'views', 'reposts'])
             ->where('moderation_status', 'approved')
@@ -65,6 +68,13 @@ class PostController extends Controller
         }
 
         $posts = $query->orderByDesc('id')->cursorPaginate($perPage);
+
+        // Append user_reaction to each post
+        $posts->getCollection()->transform(function ($post) {
+            $post->user_reaction = $post->reactions->first()?->type;
+            unset($post->reactions); // Remove the full reactions array, keep only user_reaction
+            return $post;
+        });
 
         return response()->json($posts)
             ->header('Cache-Control', 'public, max-age=30');
@@ -152,6 +162,9 @@ class PostController extends Controller
                 'user:id,name,username,profile_image',
                 'media:id,post_id,type,url,thumbnail_url,width,height',
                 'hashtags:id,name',
+                'reactions' => function ($q) use ($authUserId) {
+                    $q->where('user_id', $authUserId)->select('id', 'post_id', 'type');
+                },
             ])
             ->withCount(['comments', 'reactions', 'views', 'reposts'])
             ->where('visibility', 'public')
@@ -170,6 +183,13 @@ class PostController extends Controller
             ')
             ->orderByDesc('id')
             ->cursorPaginate($perPage);
+
+        // Append user_reaction to each post
+        $posts->getCollection()->transform(function ($post) {
+            $post->user_reaction = $post->reactions->first()?->type;
+            unset($post->reactions);
+            return $post;
+        });
 
         return response()->json($posts);
     }
