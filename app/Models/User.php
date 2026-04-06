@@ -39,6 +39,7 @@ class User extends Authenticatable
         'social_personality',
         'languages',
         'privacy_setting',
+        'preferred_language',
         'is_verified',
         'status',
     ];

@@ -33,9 +33,10 @@ class AuthController extends Controller
             schema: new OA\Schema(
                 required: ['name', 'email', 'password'],
                 properties: [
-                    new OA\Property(property: 'name',     type: 'string', example: 'John Doe'),
-                    new OA\Property(property: 'email',    type: 'string', format: 'email',    example: 'john@example.com'),
-                    new OA\Property(property: 'password', type: 'string', format: 'password', example: 'password123'),
+                    new OA\Property(property: 'name',               type: 'string', example: 'John Doe'),
+                    new OA\Property(property: 'email',              type: 'string', format: 'email',    example: 'john@example.com'),
+                    new OA\Property(property: 'password',           type: 'string', format: 'password', example: 'password123'),
+                    new OA\Property(property: 'preferred_language', type: 'string', nullable: true, example: 'en', description: 'Language code (e.g., en, hi, ta, ar)'),
                 ]
             )
         )
@@ -48,9 +49,10 @@ class AuthController extends Controller
     public function register(Request $request): JsonResponse
     {
         $request->validate([
-            'name'     => ['required', 'string', 'max:255'],
-            'email'    => ['required', 'string', 'email', 'max:255'],
-            'password' => ['required', Password::min(8)],
+            'name'               => ['required', 'string', 'max:255'],
+            'email'              => ['required', 'string', 'email', 'max:255'],
+            'password'           => ['required', Password::min(8)],
+            'preferred_language' => ['nullable', 'string', 'max:10'],
         ]);
 
         $existing = User::where('email', $request->email)->first();
@@ -63,9 +65,10 @@ class AuthController extends Controller
         }
 
         $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
+            'name'               => $request->name,
+            'email'              => $request->email,
+            'password'           => Hash::make($request->password),
+            'preferred_language' => $request->input('preferred_language', 'en'),
         ]);
 
         $this->sendOtp($user->email, 'email_verification');

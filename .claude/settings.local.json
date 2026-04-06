@@ -6,7 +6,8 @@
       "Bash(cat c:/xampp/htdocs/enom/app/Models/*.php)",
       "Bash(git reset:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(php artisan:*)"
     ]
   }
 }
