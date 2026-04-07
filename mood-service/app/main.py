@@ -49,6 +49,9 @@ app = FastAPI(
     title="ENOM Mood Detection API",
     version="1.0.0",
     description="Facial emotion recognition service for ENOM",
+    docs_url="/api/v1/mood/docs",
+    redoc_url="/api/v1/mood/redoc",
+    openapi_url="/api/v1/mood/openapi.json",
     lifespan=lifespan,
 )
 
