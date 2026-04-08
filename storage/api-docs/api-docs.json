@@ -11,7 +11,7 @@
             "description": "Production server (cPanel)"
         },
         {
-            "url": "http://47.129.5.68",
+            "url": "http://52.221.249.30",
             "description": "AWS server"
         },
         {
@@ -1168,6 +1168,44 @@
                         "bearerAuth": []
                     }
                 ]
+            }
+        },
+        "/api/languages": {
+            "get": {
+                "tags": [
+                    "Languages"
+                ],
+                "summary": "Get all supported languages",
+                "operationId": "listLanguages",
+                "parameters": [
+                    {
+                        "name": "region",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of languages"
+                    }
+                }
+            }
+        },
+        "/api/languages/regions": {
+            "get": {
+                "tags": [
+                    "Languages"
+                ],
+                "summary": "Get all language regions",
+                "operationId": "listLanguageRegions",
+                "responses": {
+                    "200": {
+                        "description": "List of regions"
+                    }
+                }
             }
         },
         "/api/notifications": {
@@ -2637,6 +2675,10 @@
         {
             "name": "Follow",
             "description": "Follow"
+        },
+        {
+            "name": "Languages",
+            "description": "Languages"
         },
         {
             "name": "Notifications",

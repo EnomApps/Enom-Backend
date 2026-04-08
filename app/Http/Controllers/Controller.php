@@ -14,7 +14,7 @@ use OpenApi\Attributes as OA;
     description: 'Production server (cPanel)'
 )]
 #[OA\Server(
-    url: 'http://47.129.5.68',
+    url: 'http://52.221.249.30',
     description: 'AWS server'
 )]
 #[OA\Server(
