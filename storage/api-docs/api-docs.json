@@ -1208,6 +1208,186 @@
                 }
             }
         },
+        "/api/v1/feed": {
+            "get": {
+                "tags": [
+                    "Mood Feed"
+                ],
+                "summary": "Get mood-customized content feed",
+                "description": "Returns posts ranked by mood relevance, engagement, and recency. Pass mood parameter to customize. Supports A/B testing with ab_test flag.",
+                "operationId": "moodFeed",
+                "parameters": [
+                    {
+                        "name": "mood",
+                        "in": "query",
+                        "description": "Current mood for personalization",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "Happy",
+                                "Neutral",
+                                "Low",
+                                "Angry"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 20
+                        }
+                    },
+                    {
+                        "name": "ab_test",
+                        "in": "query",
+                        "description": "A/B test flag: mood-ranked or chronological",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "mood",
+                                "chronological"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Mood-customized feed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/mood-mappings": {
+            "get": {
+                "tags": [
+                    "Mood Feed"
+                ],
+                "summary": "Get mood-to-content-tag mappings",
+                "operationId": "getMoodMappings",
+                "parameters": [
+                    {
+                        "name": "mood",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Mood mappings"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Mood Feed"
+                ],
+                "summary": "Create or update a mood-to-tag mapping",
+                "operationId": "upsertMoodMapping",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "mood",
+                                    "tag",
+                                    "weight"
+                                ],
+                                "properties": {
+                                    "mood": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Happy",
+                                            "Neutral",
+                                            "Low",
+                                            "Angry"
+                                        ]
+                                    },
+                                    "tag": {
+                                        "type": "string",
+                                        "example": "funny"
+                                    },
+                                    "weight": {
+                                        "type": "number",
+                                        "example": 0.8
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Mapping saved"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/mood-mappings/{id}": {
+            "delete": {
+                "tags": [
+                    "Mood Feed"
+                ],
+                "summary": "Delete a mood-to-tag mapping",
+                "operationId": "deleteMoodMapping",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Mapping deleted"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/notifications": {
             "get": {
                 "tags": [
@@ -2679,6 +2859,10 @@
         {
             "name": "Languages",
             "description": "Languages"
+        },
+        {
+            "name": "Mood Feed",
+            "description": "Mood Feed"
         },
         {
             "name": "Notifications",

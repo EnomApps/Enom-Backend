@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\PostViewController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\RepostController;
 use App\Http\Controllers\Api\BlockReportController;
+use App\Http\Controllers\Api\MoodFeedController;
 
 // ─── Public Auth Routes ────────────────────────────────────────────────────
 Route::prefix('auth')->group(function () {
@@ -33,6 +34,12 @@ Route::get('/interests', [ProfileController::class, 'interests']);
 Route::middleware('auth:sanctum')->group(function () {
     // Auth
     Route::post('/auth/logout',  [AuthController::class,  'logout']);
+
+    // Mood Feed
+    Route::get('/v1/feed',                [MoodFeedController::class, 'feed']);
+    Route::get('/v1/mood-mappings',       [MoodFeedController::class, 'getMappings']);
+    Route::post('/v1/mood-mappings',      [MoodFeedController::class, 'upsertMapping']);
+    Route::delete('/v1/mood-mappings/{id}', [MoodFeedController::class, 'deleteMapping']);
 
     // Profile
     Route::get('/user/profile',  [ProfileController::class, 'show']);
