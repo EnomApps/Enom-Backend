@@ -417,6 +417,178 @@ async def get_mood_trend(
     return {"trend": trend}
 
 
+# ─── Correct Mood Entry ───────────────────────────────
+@app.put("/api/v1/mood/history/{entry_id}/correct", tags=["Mood History"])
+async def correct_mood_entry(
+    entry_id: str,
+    body: MoodHistoryCreateRequest,
+    authorization: str = Header(None),
+):
+    """Correct a detected mood. Tracks original vs corrected for accuracy metrics."""
+    try:
+        user = await validate_token(authorization or "")
+    except AuthError as e:
+        return JSONResponse(status_code=401, content={"error": "AUTH_FAILED", "message": e.message})
+
+    if body.mood not in ("Happy", "Neutral", "Low", "Angry"):
+        return JSONResponse(status_code=422, content={"error": "INVALID_MOOD", "message": "Mood must be Happy, Neutral, Low, or Angry."})
+
+    corrected = db.correct_entry(entry_id, user["user_id"], body.mood)
+
+    if not corrected:
+        return JSONResponse(status_code=404, content={"error": "NOT_FOUND", "message": "Entry not found."})
+
+    return {"message": "Mood corrected.", "corrected_mood": body.mood}
+
+
+# ─── User Mood Trends ────────────────────────────────
+@app.get("/api/v1/mood/analytics/trends", tags=["Mood Analytics"])
+async def user_mood_trends(
+    authorization: str = Header(None),
+    period: str = "7d",
+    tz_offset: int = 0,
+):
+    """
+    Get user mood trends for a period.
+    - period: 7d, 30d, or 90d
+    - tz_offset: timezone offset in hours (e.g., 5 for IST, -5 for EST)
+    """
+    try:
+        user = await validate_token(authorization or "")
+    except AuthError as e:
+        return JSONResponse(status_code=401, content={"error": "AUTH_FAILED", "message": e.message})
+
+    if period not in ("7d", "30d", "90d"):
+        return JSONResponse(status_code=422, content={"error": "INVALID_PERIOD", "message": "Period must be 7d, 30d, or 90d."})
+
+    # Cache for 15 minutes
+    import redis as redis_lib
+    cache_key = f"mood_trends:{user['user_id']}:{period}"
+
+    try:
+        r = redis_lib.Redis(host="127.0.0.1", port=6379, db=2, decode_responses=True)
+        cached = r.get(cache_key)
+        if cached:
+            import json
+            return json.loads(cached)
+    except Exception:
+        pass
+
+    trends = db.get_user_trends(user["user_id"], period, tz_offset)
+
+    try:
+        import json
+        r.setex(cache_key, 900, json.dumps(trends))
+    except Exception:
+        pass
+
+    return trends
+
+
+# ─── Global Mood Stats (Admin) ────────────────────────
+@app.get("/api/v1/mood/analytics/global", tags=["Mood Analytics"])
+async def global_mood_stats(
+    authorization: str = Header(None),
+    period: str = "7d",
+):
+    """
+    Platform-wide mood distribution stats.
+    - period: 7d, 30d, 90d, all
+    """
+    try:
+        user = await validate_token(authorization or "")
+    except AuthError as e:
+        return JSONResponse(status_code=401, content={"error": "AUTH_FAILED", "message": e.message})
+
+    # Cache for 15 minutes
+    import redis as redis_lib
+    cache_key = f"mood_global:{period}"
+
+    try:
+        r = redis_lib.Redis(host="127.0.0.1", port=6379, db=2, decode_responses=True)
+        cached = r.get(cache_key)
+        if cached:
+            import json
+            return json.loads(cached)
+    except Exception:
+        pass
+
+    stats = db.get_global_stats(period)
+
+    try:
+        import json
+        r.setex(cache_key, 900, json.dumps(stats))
+    except Exception:
+        pass
+
+    return stats
+
+
+# ─── Detection Accuracy ──────────────────────────────
+@app.get("/api/v1/mood/analytics/accuracy", tags=["Mood Analytics"])
+async def detection_accuracy(
+    authorization: str = Header(None),
+    scope: str = "user",
+):
+    """
+    Detection accuracy stats.
+    - scope: 'user' for personal stats, 'global' for platform-wide
+    """
+    try:
+        user = await validate_token(authorization or "")
+    except AuthError as e:
+        return JSONResponse(status_code=401, content={"error": "AUTH_FAILED", "message": e.message})
+
+    if scope == "user":
+        stats = db.get_accuracy_stats(user["user_id"])
+    else:
+        stats = db.get_accuracy_stats()
+
+    return {"accuracy": stats}
+
+
+# ─── CSV Export ───────────────────────────────────────
+@app.get("/api/v1/mood/analytics/export", tags=["Mood Analytics"])
+async def export_mood_data(
+    authorization: str = Header(None),
+    format: str = "csv",
+    startDate: Optional[str] = None,
+    endDate: Optional[str] = None,
+    scope: str = "user",
+):
+    """
+    Export mood data as CSV.
+    - format: csv
+    - scope: 'user' for own data, 'global' for all (admin)
+    """
+    try:
+        user = await validate_token(authorization or "")
+    except AuthError as e:
+        return JSONResponse(status_code=401, content={"error": "AUTH_FAILED", "message": e.message})
+
+    user_id = user["user_id"] if scope == "user" else None
+    entries = db.export_entries_csv(user_id, startDate, endDate)
+
+    if format == "csv":
+        import csv
+        import io
+
+        output = io.StringIO()
+        if entries:
+            writer = csv.DictWriter(output, fieldnames=entries[0].keys())
+            writer.writeheader()
+            writer.writerows(entries)
+
+        from fastapi.responses import Response
+        return Response(
+            content=output.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=mood_export.csv"},
+        )
+
+    return {"data": entries, "count": len(entries)}
+
+
 # ─── Run ──────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn

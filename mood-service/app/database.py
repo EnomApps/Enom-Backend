@@ -34,6 +34,8 @@ def init_db():
             confidence REAL NOT NULL DEFAULT 0.0,
             source TEXT NOT NULL DEFAULT 'camera' CHECK(source IN ('camera', 'manual')),
             all_scores TEXT,
+            original_mood TEXT DEFAULT NULL,
+            is_corrected INTEGER DEFAULT 0,
             detected_at TEXT NOT NULL,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             deleted_at TEXT DEFAULT NULL
@@ -44,6 +46,9 @@ def init_db():
 
         CREATE INDEX IF NOT EXISTS idx_mood_entries_user_mood
             ON mood_entries(user_id, mood);
+
+        CREATE INDEX IF NOT EXISTS idx_mood_entries_detected_date
+            ON mood_entries(date(detected_at));
 
         CREATE UNIQUE INDEX IF NOT EXISTS idx_mood_entries_idempotent
             ON mood_entries(user_id, detected_at) WHERE deleted_at IS NULL;
@@ -250,5 +255,242 @@ def get_mood_trend(user_id: str, start_date: str = None, end_date: str = None) -
             "distribution": distribution,
             "recent_trend": recent_moods,
         }
+    finally:
+        conn.close()
+
+
+def correct_entry(entry_id: str, user_id: str, corrected_mood: str) -> bool:
+    """User corrects a detected mood. Tracks accuracy."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT mood FROM mood_entries WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (entry_id, user_id),
+        ).fetchone()
+
+        if not row:
+            return False
+
+        conn.execute(
+            """UPDATE mood_entries
+               SET original_mood = CASE WHEN original_mood IS NULL THEN mood ELSE original_mood END,
+                   mood = ?,
+                   is_corrected = 1
+               WHERE id = ? AND user_id = ?""",
+            (corrected_mood, entry_id, user_id),
+        )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def get_user_trends(user_id: str, period: str = "7d", timezone_offset: int = 0) -> dict:
+    """Get user mood trends for a period (7d, 30d, 90d)."""
+    days = {"7d": 7, "30d": 30, "90d": 90}.get(period, 7)
+
+    conn = get_db()
+    try:
+        # Daily breakdown
+        daily = conn.execute(
+            """SELECT date(detected_at, ? || ' hours') as day,
+                      mood, COUNT(*) as count
+               FROM mood_entries
+               WHERE user_id = ? AND deleted_at IS NULL
+                 AND detected_at >= datetime('now', ? || ' days')
+               GROUP BY day, mood
+               ORDER BY day DESC""",
+            (str(timezone_offset), user_id, str(-days)),
+        ).fetchall()
+
+        # Overall distribution for the period
+        dist = conn.execute(
+            """SELECT mood, COUNT(*) as count,
+                      ROUND(AVG(confidence), 3) as avg_confidence
+               FROM mood_entries
+               WHERE user_id = ? AND deleted_at IS NULL
+                 AND detected_at >= datetime('now', ? || ' days')
+               GROUP BY mood
+               ORDER BY count DESC""",
+            (user_id, str(-days)),
+        ).fetchall()
+
+        total = sum(r["count"] for r in dist)
+        distribution = {}
+        for r in dist:
+            distribution[r["mood"]] = {
+                "count": r["count"],
+                "percentage": round(r["count"] / total * 100, 1) if total > 0 else 0,
+                "avg_confidence": r["avg_confidence"],
+            }
+
+        dominant = dist[0]["mood"] if dist else None
+
+        # Build daily timeline
+        timeline = {}
+        for r in daily:
+            day = r["day"]
+            if day not in timeline:
+                timeline[day] = {"date": day, "Happy": 0, "Neutral": 0, "Low": 0, "Angry": 0, "total": 0}
+            timeline[day][r["mood"]] = r["count"]
+            timeline[day]["total"] += r["count"]
+
+        return {
+            "period": period,
+            "days": days,
+            "total_entries": total,
+            "dominant_mood": dominant,
+            "mood_distribution": distribution,
+            "daily_timeline": list(timeline.values()),
+        }
+    finally:
+        conn.close()
+
+
+def get_global_stats(period: str = "7d") -> dict:
+    """Get platform-wide mood distribution (admin)."""
+    days = {"7d": 7, "30d": 30, "90d": 90, "all": 36500}.get(period, 7)
+
+    conn = get_db()
+    try:
+        # Overall distribution
+        dist = conn.execute(
+            """SELECT mood, COUNT(*) as count,
+                      ROUND(AVG(confidence), 3) as avg_confidence
+               FROM mood_entries
+               WHERE deleted_at IS NULL
+                 AND detected_at >= datetime('now', ? || ' days')
+               GROUP BY mood
+               ORDER BY count DESC""",
+            (str(-days),),
+        ).fetchall()
+
+        total = sum(r["count"] for r in dist)
+        distribution = {}
+        for r in dist:
+            distribution[r["mood"]] = {
+                "count": r["count"],
+                "percentage": round(r["count"] / total * 100, 1) if total > 0 else 0,
+                "avg_confidence": r["avg_confidence"],
+            }
+
+        # Unique users
+        users = conn.execute(
+            """SELECT COUNT(DISTINCT user_id) as count
+               FROM mood_entries
+               WHERE deleted_at IS NULL
+                 AND detected_at >= datetime('now', ? || ' days')""",
+            (str(-days),),
+        ).fetchone()
+
+        # Source breakdown
+        sources = conn.execute(
+            """SELECT source, COUNT(*) as count
+               FROM mood_entries
+               WHERE deleted_at IS NULL
+                 AND detected_at >= datetime('now', ? || ' days')
+               GROUP BY source""",
+            (str(-days),),
+        ).fetchall()
+
+        # Daily volume
+        daily_volume = conn.execute(
+            """SELECT date(detected_at) as day, COUNT(*) as count
+               FROM mood_entries
+               WHERE deleted_at IS NULL
+                 AND detected_at >= datetime('now', ? || ' days')
+               GROUP BY day
+               ORDER BY day DESC LIMIT 30""",
+            (str(-days),),
+        ).fetchall()
+
+        return {
+            "period": period,
+            "total_detections": total,
+            "unique_users": users["count"] if users else 0,
+            "mood_distribution": distribution,
+            "source_breakdown": {r["source"]: r["count"] for r in sources},
+            "daily_volume": [{"date": r["day"], "count": r["count"]} for r in daily_volume],
+        }
+    finally:
+        conn.close()
+
+
+def get_accuracy_stats(user_id: str = None) -> dict:
+    """Get detection accuracy stats (confirmed vs corrected)."""
+    conn = get_db()
+    try:
+        conditions = ["deleted_at IS NULL", "source = 'camera'"]
+        params = []
+
+        if user_id:
+            conditions.append("user_id = ?")
+            params.append(user_id)
+
+        where = " AND ".join(conditions)
+
+        total = conn.execute(
+            f"SELECT COUNT(*) as count FROM mood_entries WHERE {where}", params
+        ).fetchone()["count"]
+
+        corrected = conn.execute(
+            f"SELECT COUNT(*) as count FROM mood_entries WHERE {where} AND is_corrected = 1", params
+        ).fetchone()["count"]
+
+        confirmed = total - corrected
+
+        # Correction breakdown
+        corrections = conn.execute(
+            f"""SELECT original_mood, mood as corrected_to, COUNT(*) as count
+                FROM mood_entries
+                WHERE {where} AND is_corrected = 1
+                GROUP BY original_mood, corrected_to
+                ORDER BY count DESC""",
+            params,
+        ).fetchall()
+
+        return {
+            "total_detections": total,
+            "confirmed": confirmed,
+            "corrected": corrected,
+            "accuracy_rate": round(confirmed / total * 100, 1) if total > 0 else 0,
+            "corrections": [dict(r) for r in corrections],
+        }
+    finally:
+        conn.close()
+
+
+def export_entries_csv(user_id: str = None, start_date: str = None, end_date: str = None) -> list:
+    """Export mood entries as list of dicts for CSV."""
+    conn = get_db()
+    try:
+        conditions = ["deleted_at IS NULL"]
+        params = []
+
+        if user_id:
+            conditions.append("user_id = ?")
+            params.append(user_id)
+
+        if start_date:
+            conditions.append("detected_at >= ?")
+            params.append(start_date)
+
+        if end_date:
+            conditions.append("detected_at <= ?")
+            params.append(end_date)
+
+        where = " AND ".join(conditions)
+
+        rows = conn.execute(
+            f"""SELECT id, user_id, mood, confidence, source,
+                       original_mood, is_corrected, detected_at, created_at
+                FROM mood_entries
+                WHERE {where}
+                ORDER BY detected_at DESC
+                LIMIT 10000""",
+            params,
+        ).fetchall()
+
+        return [dict(r) for r in rows]
     finally:
         conn.close()
