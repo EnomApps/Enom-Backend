@@ -10,7 +10,7 @@ Image preprocessing pipeline for mood detection.
 import base64
 import io
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 from app.config import MAX_IMAGE_SIZE, MODEL_INPUT_SIZE
 
 
@@ -54,6 +54,10 @@ def validate_image(image_bytes: bytes) -> Image.Image:
         img.verify()
         # Re-open after verify (verify() closes the image)
         img = Image.open(io.BytesIO(image_bytes))
+
+        # CRITICAL FIX: Apply EXIF orientation so mobile photos are upright
+        # Without this, sideways photos cause wrong emotion detection
+        img = ImageOps.exif_transpose(img)
     except Exception:
         raise ImagePreprocessingError(
             code="INVALID_IMAGE",

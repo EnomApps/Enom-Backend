@@ -22,12 +22,13 @@ MODEL_INPUT_SIZE = (48, 48)  # FER model expects 48x48
 LARAVEL_API_URL = os.getenv("LARAVEL_API_URL", "http://127.0.0.1")
 
 # Mood mapping: FER outputs -> Our labels
+# DeepFace returns: happy, sad, angry, fear, surprise, disgust, neutral
 MOOD_MAP = {
     "happy": "Happy",
     "neutral": "Neutral",
     "sad": "Low",
     "angry": "Angry",
-    "surprise": "Happy",    # map surprise to Happy
-    "fear": "Low",          # map fear to Low
-    "disgust": "Angry",     # map disgust to Angry
+    "surprise": "Neutral",  # surprise is ambiguous, map to Neutral (was incorrectly Happy)
+    "fear": "Low",
+    "disgust": "Angry",
 }
