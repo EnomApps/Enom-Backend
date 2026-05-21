@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ENOM - System Development Documentation</title>
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 20mm 15mm;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+  }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    color: #2c3e50;
+    line-height: 1.5;
+    font-size: 11pt;
+  }
+  .container {
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+  /* COVER */
+  .cover {
+    text-align: center;
+    padding: 60px 30px;
+    page-break-after: always;
+    background: #1a237e;
+    color: white;
+    height: 250mm;
+  }
+  .cover-tag {
+    font-size: 12pt;
+    letter-spacing: 8px;
+    color: #ffd700;
+    margin-bottom: 20px;
+    margin-top: 80px;
+  }
+  .cover-title {
+    font-size: 60pt;
+    margin: 10px 0;
+    letter-spacing: 6px;
+    color: #ffd700;
+    font-weight: bold;
+  }
+  .cover-subtitle {
+    font-size: 28pt;
+    font-weight: 300;
+    margin: 0 0 80px;
+  }
+  .cover-desc {
+    font-size: 14pt;
+    margin-bottom: 100px;
+  }
+  .cover-info {
+    font-size: 12pt;
+    line-height: 2.2;
+  }
+  .cover-info strong { color: #ffd700; }
+
+  /* HEADINGS */
+  h1 {
+    color: #1a237e;
+    border-bottom: 3px solid #ffd700;
+    padding-bottom: 8px;
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 22pt;
+    page-break-before: always;
+  }
+  h1:first-of-type { page-break-before: avoid; }
+  h2 {
+    color: #283593;
+    margin-top: 25px;
+    margin-bottom: 12px;
+    font-size: 15pt;
+    border-left: 4px solid #ffd700;
+    padding-left: 10px;
+  }
+  h3 {
+    color: #3949ab;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    font-size: 12pt;
+  }
+  p { margin: 8px 0; text-align: justify; }
+  ul, ol {
+    margin: 8px 0;
+    padding-left: 25px;
+  }
+  li { margin: 4px 0; }
+
+  /* TABLES */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 10pt;
+    page-break-inside: avoid;
+  }
+  th {
+    background: #1a237e;
+    color: white;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: bold;
+    border: 1px solid #1a237e;
+  }
+  td {
+    padding: 7px 10px;
+    border: 1px solid #ddd;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #f5f7fa; }
+
+  /* CODE */
+  code {
+    background: #f5f5f5;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 9.5pt;
+    color: #c2185b;
+  }
+  pre {
+    background: #263238;
+    color: #aed581;
+    padding: 12px;
+    border-radius: 5px;
+    font-size: 9pt;
+    font-family: 'Courier New', monospace;
+    line-height: 1.4;
+    page-break-inside: avoid;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; }
+
+  /* ARCHITECTURE DIAGRAM */
+  .architecture {
+    background: #f8f9fa;
+    border: 2px solid #1a237e;
+    border-radius: 6px;
+    padding: 20px;
+    margin: 15px 0;
+    text-align: center;
+    page-break-inside: avoid;
+  }
+  .arch-box {
+    display: inline-block;
+    background: white;
+    border: 2px solid #283593;
+    border-radius: 6px;
+    padding: 10px 18px;
+    margin: 5px;
+    text-align: center;
+    font-size: 10pt;
+    font-weight: bold;
+    min-width: 130px;
+  }
+  .arch-box.primary {
+    background: #1a237e;
+    color: white;
+  }
+  .arch-box.gold {
+    background: #ffd700;
+    color: #1a237e;
+  }
+  .arch-arrow {
+    display: block;
+    font-size: 22pt;
+    color: #1a237e;
+    margin: 5px 0;
+    line-height: 1;
+  }
+
+  /* HIGHLIGHT BOX */
+  .highlight-box {
+    background: #fff8e1;
+    border-left: 5px solid #ffd700;
+    padding: 12px 16px;
+    margin: 15px 0;
+    border-radius: 3px;
+  }
+  .highlight-box h3 {
+    margin-top: 0;
+    color: #1a237e;
+  }
+
+  /* STATUS BADGES */
+  .status-complete {
+    background: #c8e6c9;
+    color: #1b5e20;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-size: 9pt;
+    font-weight: bold;
+    display: inline-block;
+  }
+  .status-progress {
+    background: #fff9c4;
+    color: #f57f17;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-size: 9pt;
+    font-weight: bold;
+    display: inline-block;
+  }
+
+  /* STATS GRID */
+  .stat-row {
+    display: table;
+    width: 100%;
+    margin: 10px 0;
+    border-spacing: 8px;
+    border-collapse: separate;
+  }
+  .stat-cell {
+    display: table-cell;
+    background: #1a237e;
+    color: white;
+    padding: 16px 12px;
+    border-radius: 6px;
+    text-align: center;
+    width: 25%;
+  }
+  .stat-number {
+    font-size: 24pt;
+    font-weight: bold;
+    color: #ffd700;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .stat-label {
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* TOC */
+  .toc {
+    background: #f5f7fa;
+    padding: 20px 30px;
+    border-radius: 6px;
+    margin: 20px 0;
+    page-break-after: always;
+  }
+  .toc h2 {
+    border: none;
+    padding: 0;
+    margin-top: 0;
+    color: #1a237e;
+  }
+  .toc ol {
+    list-style: none;
+    counter-reset: toc-counter;
+    padding-left: 0;
+  }
+  .toc li {
+    counter-increment: toc-counter;
+    padding: 6px 0;
+    border-bottom: 1px dotted #ccc;
+    font-size: 11pt;
+  }
+  .toc li:before {
+    content: counter(toc-counter) ". ";
+    font-weight: bold;
+    color: #1a237e;
+    margin-right: 8px;
+  }
+
+  /* PIPELINE */
+  .pipeline {
+    background: #263238;
+    color: white;
+    padding: 16px 20px;
+    border-radius: 6px;
+    margin: 12px 0;
+    page-break-inside: avoid;
+  }
+  .pipeline-step {
+    margin: 8px 0;
+    padding: 6px 0;
+    color: #aed581;
+    font-size: 10.5pt;
+  }
+  .pipeline-num {
+    display: inline-block;
+    background: #ffd700;
+    color: #263238;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 24px;
+    font-weight: bold;
+    margin-right: 10px;
+    font-size: 10pt;
+  }
+
+  /* FOOTER */
+  .footer {
+    text-align: center;
+    color: #666;
+    font-size: 9pt;
+    margin-top: 40px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+  }
+  .footer em { font-style: italic; }
+</style>
+</head>
+<body>
+
+<!-- COVER PAGE -->
+<div class="cover">
+  <div class="cover-tag">SYSTEM DEVELOPMENT</div>
+  <div class="cover-title">ENOM</div>
+  <div class="cover-subtitle">Documentation</div>
+  <div class="cover-desc">AI-Powered Social Media Platform</div>
+  <div class="cover-info">
+    <div><strong>Document Version:</strong> 1.0</div>
+    <div><strong>Date:</strong> April 2026</div>
+    <div><strong>Prepared by:</strong> Backend Development Team</div>
+  </div>
+</div>
+
+<!-- TABLE OF CONTENTS -->
+<div class="toc">
+  <h2>Table of Contents</h2>
+  <ol>
+    <li>Executive Summary</li>
+    <li>System Architecture</li>
+    <li>Module Overview</li>
+    <li>Database Design</li>
+    <li>Development Process</li>
+    <li>Security Implementation</li>
+    <li>Performance Optimization</li>
+    <li>Mood Detection AI System</li>
+    <li>Deployment &amp; Operations</li>
+    <li>Testing &amp; Quality Assurance</li>
+    <li>Third-Party Integrations</li>
+    <li>Project Statistics</li>
+    <li>Future Roadmap &amp; Pending Modules</li>
+    <li>Support &amp; Maintenance</li>
+  </ol>
+</div>
+
+<!-- 1. EXECUTIVE SUMMARY -->
+<h1>1. Executive Summary</h1>
+<p>ENOM is a TikTok/Instagram-style social media platform featuring <strong>AI-powered mood detection</strong> that personalizes the user feed based on emotional state. The platform supports image and video posts, social interactions (likes, comments, follows), real-time push notifications, mood-based content recommendations, and multi-language support across 78 languages.</p>
+
+<div class="highlight-box">
+  <h3>Key Differentiator</h3>
+  <p style="margin-bottom:0;">Unlike traditional social platforms, ENOM uses <strong>facial emotion recognition (FER)</strong> to detect user mood and serve personalized content. For example, if a user is detected as "Low" mood, the feed prioritizes uplifting and motivational content.</p>
+</div>
+
+<!-- 2. SYSTEM ARCHITECTURE -->
+<h1>2. System Architecture</h1>
+
+<h2>2.1 High-Level Architecture</h2>
+<div class="architecture">
+  <div class="arch-box primary">Flutter App (Android / iOS)</div>
+  <div class="arch-arrow">&#8595;</div>
+  <div class="arch-box gold">Nginx Reverse Proxy (Port 80)</div>
+  <div class="arch-arrow">&#8595;</div>
+  <div>
+    <div class="arch-box">Laravel API (PHP 8.3-FPM)</div>
+    <div class="arch-box">Python FastAPI Mood Service</div>
+  </div>
+  <div class="arch-arrow">&#8595;</div>
+  <div>
+    <div class="arch-box">MySQL</div>
+    <div class="arch-box">Redis</div>
+    <div class="arch-box">SQLite</div>
+    <div class="arch-box">DeepFace</div>
+  </div>
+  <div class="arch-arrow">&#8595;</div>
+  <div>
+    <div class="arch-box">AWS S3</div>
+    <div class="arch-box">CloudFront CDN</div>
+    <div class="arch-box">Firebase FCM</div>
+  </div>
+</div>
+
+<h2>2.2 Component Breakdown</h2>
+<table>
+  <thead><tr><th width="25%">Component</th><th width="30%">Technology</th><th width="45%">Purpose</th></tr></thead>
+  <tbody>
+    <tr><td>Web Server</td><td>Nginx 1.24</td><td>Reverse proxy, SSL termination</td></tr>
+    <tr><td>Backend API</td><td>Laravel 12 + PHP 8.3</td><td>REST APIs, business logic</td></tr>
+    <tr><td>Mood AI Service</td><td>FastAPI + Python 3.12</td><td>Facial emotion recognition</td></tr>
+    <tr><td>Database</td><td>MySQL 8</td><td>Primary data store</td></tr>
+    <tr><td>Mood Database</td><td>SQLite</td><td>Mood history (isolated)</td></tr>
+    <tr><td>Cache</td><td>Redis 7</td><td>Session, feed cache, rate limiting</td></tr>
+    <tr><td>Object Storage</td><td>AWS S3</td><td>Images, videos, thumbnails</td></tr>
+    <tr><td>CDN</td><td>CloudFront</td><td>Global media delivery</td></tr>
+    <tr><td>Push Notifications</td><td>Firebase Cloud Messaging</td><td>Mobile push</td></tr>
+    <tr><td>Email</td><td>SMTP (cPanel)</td><td>OTP, password reset</td></tr>
+    <tr><td>Authentication</td><td>Laravel Sanctum</td><td>Bearer token auth</td></tr>
+    <tr><td>Mood Model</td><td>DeepFace + OpenCV</td><td>Emotion recognition (85-90% accuracy)</td></tr>
+  </tbody>
+</table>
+
+<h2>2.3 Infrastructure</h2>
+<table>
+  <tr><th width="35%">Specification</th><th>Value</th></tr>
+  <tr><td>Hosting</td><td>AWS EC2 (Ubuntu 22.04)</td></tr>
+  <tr><td>Instance Type</td><td>8 GB RAM, 2 vCPU</td></tr>
+  <tr><td>Public IP</td><td>52.221.249.30</td></tr>
+  <tr><td>Domain</td><td>api.enom.ai (planned for production)</td></tr>
+  <tr><td>Deployment</td><td>Git-based via GitHub</td></tr>
+  <tr><td>CI/CD</td><td>Manual deployment scripts</td></tr>
+</table>
+
+<!-- 3. MODULE OVERVIEW -->
+<h1>3. Module Overview</h1>
+
+<h2>3.1 Core Modules</h2>
+<table>
+  <thead><tr><th width="25%">Module</th><th>Features</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Authentication</strong></td><td>Registration, email OTP verification, login, password reset, logout</td></tr>
+    <tr><td><strong>Profile</strong></td><td>View/update profile, interests, preferred language, share link</td></tr>
+    <tr><td><strong>Posts</strong></td><td>CRUD operations, image/video upload, location tagging, hashtags</td></tr>
+    <tr><td><strong>Feed</strong></td><td>Chronological feed, For You feed (algorithm), Mood-based feed</td></tr>
+    <tr><td><strong>Engagement</strong></td><td>Like/react (6 emotions), comment with replies, comment likes</td></tr>
+    <tr><td><strong>Social</strong></td><td>Follow/unfollow, save posts, repost, share links</td></tr>
+    <tr><td><strong>Discovery</strong></td><td>Search (users/posts/hashtags), trending hashtags</td></tr>
+    <tr><td><strong>Notifications</strong></td><td>Push (FCM) + in-app, mark read, delete</td></tr>
+    <tr><td><strong>Moderation</strong></td><td>Block/report users, content filtering, auto-hide on reports</td></tr>
+    <tr><td><strong>Mood AI</strong></td><td>Facial emotion detection, mood history, analytics, accuracy tracking</td></tr>
+    <tr><td><strong>Localization</strong></td><td>78 languages with RTL support</td></tr>
+  </tbody>
+</table>
+
+<h2>3.2 API Endpoints Summary</h2>
+<p><strong>Total Endpoints: 70+</strong></p>
+<table>
+  <thead><tr><th>Category</th><th>Count</th><th>Category</th><th>Count</th></tr></thead>
+  <tbody>
+    <tr><td>Authentication</td><td>8</td><td>Search</td><td>3</td></tr>
+    <tr><td>Profile</td><td>6</td><td>Mood Detection</td><td>1</td></tr>
+    <tr><td>Posts</td><td>7</td><td>Mood History</td><td>6</td></tr>
+    <tr><td>Comments</td><td>6</td><td>Mood Analytics</td><td>4</td></tr>
+    <tr><td>Reactions</td><td>4</td><td>Mood Feed</td><td>4</td></tr>
+    <tr><td>Follow</td><td>5</td><td>Block/Report</td><td>4</td></tr>
+    <tr><td>Saved Posts</td><td>3</td><td>Languages</td><td>2</td></tr>
+    <tr><td>Notifications</td><td>4</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+  </tbody>
+</table>
+
+<!-- 4. DATABASE DESIGN -->
+<h1>4. Database Design</h1>
+
+<h2>4.1 Schema Overview (MySQL)</h2>
+<p><strong>20 tables</strong> organized into 5 logical groups:</p>
+
+<h3>User &amp; Authentication</h3>
+<ul>
+  <li><code>users</code> - User accounts and profiles</li>
+  <li><code>personal_access_tokens</code> - Sanctum tokens</li>
+  <li><code>otp_verifications</code> - Email OTPs</li>
+</ul>
+
+<h3>Social Content</h3>
+<ul>
+  <li><code>posts</code> - User posts (with location, moderation status)</li>
+  <li><code>post_media</code> - Images/videos (with thumbnails)</li>
+  <li><code>comments</code> - Comments with nested replies</li>
+  <li><code>comment_likes</code> - Comment likes</li>
+  <li><code>reactions</code> - Post reactions (like, love, haha, wow, sad, angry)</li>
+  <li><code>reposts</code> - Reposts with optional quotes</li>
+  <li><code>post_views</code> - View tracking</li>
+</ul>
+
+<h3>Discovery</h3>
+<ul>
+  <li><code>hashtags</code> - Hashtag names with post counts</li>
+  <li><code>hashtag_post</code> - Many-to-many pivot</li>
+  <li><code>interests</code> - Predefined interests</li>
+  <li><code>user_interests</code> - User-interest pivot</li>
+</ul>
+
+<h3>Social Graph</h3>
+<ul>
+  <li><code>follows</code> - Follow relationships</li>
+  <li><code>saved_posts</code> - Bookmarked posts</li>
+  <li><code>blocks</code> - Blocked users</li>
+</ul>
+
+<h3>Safety &amp; Notifications</h3>
+<ul>
+  <li><code>reports</code> - Content reports (polymorphic)</li>
+  <li><code>notifications</code> - In-app notifications</li>
+  <li><code>device_tokens</code> - FCM tokens</li>
+  <li><code>mood_content_mappings</code> - Mood-to-tag mappings for feed</li>
+  <li><code>languages</code> - 78 supported languages</li>
+</ul>
+
+<h2>4.2 Mood Database (SQLite)</h2>
+<p>Isolated from MySQL for performance and isolation:</p>
+<ul>
+  <li><code>mood_entries</code> - Detected/manual mood entries with soft delete and accuracy tracking</li>
+</ul>
+
+<h2>4.3 Key Relationships</h2>
+<ul>
+  <li>User &rarr; has many Posts, Comments, Reactions, Follows</li>
+  <li>Post &rarr; has many Media, Comments, Reactions, belongs to User</li>
+  <li>Comment &rarr; has many Replies (self-referential), Likes</li>
+  <li>User &harr; Interests (many-to-many)</li>
+  <li>Post &harr; Hashtags (many-to-many)</li>
+  <li>User &harr; User (follows, blocks)</li>
+</ul>
+
+<!-- 5. DEVELOPMENT PROCESS -->
+<h1>5. Development Process</h1>
+
+<h2>5.1 Development Methodology</h2>
+<table>
+  <tr><th width="30%">Aspect</th><th>Details</th></tr>
+  <tr><td>Approach</td><td>Agile / Iterative</td></tr>
+  <tr><td>Sprint Length</td><td>Per feature ticket</td></tr>
+  <tr><td>Tools</td><td>Git (GitHub), Postman, Swagger UI</td></tr>
+  <tr><td>Code Reviews</td><td>Pre-deployment review of all changes</td></tr>
+</table>
+
+<h2>5.2 Development Phases</h2>
+<table>
+  <thead><tr><th width="15%">Phase</th><th width="60%">Features</th><th width="25%">Status</th></tr></thead>
+  <tbody>
+    <tr><td>Phase 1</td><td>Auth, Profile, Basic Posts</td><td><span class="status-complete">Complete</span></td></tr>
+    <tr><td>Phase 2</td><td>Comments, Reactions, Follow, Notifications</td><td><span class="status-complete">Complete</span></td></tr>
+    <tr><td>Phase 3</td><td>S3 Media Storage, CloudFront CDN, Caching</td><td><span class="status-complete">Complete</span></td></tr>
+    <tr><td>Phase 4</td><td>Search, Hashtags, For You Feed, Block/Report</td><td><span class="status-complete">Complete</span></td></tr>
+    <tr><td>Phase 5</td><td>Mood Detection AI Service</td><td><span class="status-complete">Complete</span></td></tr>
+    <tr><td>Phase 6</td><td>Mood History, Analytics, Mood-Based Feed</td><td><span class="status-complete">Complete</span></td></tr>
+    <tr><td>Phase 7</td><td>Multi-language Support (78 languages)</td><td><span class="status-complete">Complete</span></td></tr>
+    <tr><td>Phase 8</td><td>Production Hardening</td><td><span class="status-progress">In Progress</span></td></tr>
+    <tr><td>Sprint 5</td><td>Mood-Based Feed Customization (Happy, Neutral, Low, Angry)</td><td><span class="status-progress">In Progress</span></td></tr>
+    <tr><td>Sprint 6</td><td>Chat Module - 1:1, Group, Trip Channels, A/V Calls, TTS</td><td><span class="status-progress">Planned</span></td></tr>
+    <tr><td>Sprint 7</td><td>Events Engine - Creation, Ranking, Subscriptions</td><td><span class="status-progress">Planned</span></td></tr>
+  </tbody>
+</table>
+
+<h2>5.3 Code Organization</h2>
+<h3>Laravel Backend</h3>
+<pre>app/
+├── Http/Controllers/Api/    (15 controllers)
+├── Models/                  (20 Eloquent models)
+├── Services/                (Business logic)
+│   ├── ContentModerationService.php
+│   └── NotificationService.php
+├── Mail/                    (Email templates)
+└── Console/Commands/        (CLI commands)</pre>
+
+<h3>Python Mood Service</h3>
+<pre>mood-service/
+├── app/
+│   ├── main.py              (FastAPI application)
+│   ├── auth.py              (Token validation)
+│   ├── preprocessing.py     (Image pipeline)
+│   ├── mood_detector.py     (DeepFace integration)
+│   ├── rate_limiter.py      (Redis rate limiting)
+│   └── database.py          (SQLite operations)
+└── tests/                   (Unit tests)</pre>
+
+<!-- 6. SECURITY -->
+<h1>6. Security Implementation</h1>
+
+<h2>6.1 Authentication &amp; Authorization</h2>
+<table>
+  <tr><th width="30%">Item</th><th>Description</th></tr>
+  <tr><td>Mechanism</td><td>Laravel Sanctum (Bearer tokens)</td></tr>
+  <tr><td>Token Format</td><td><code>Bearer {token}</code></td></tr>
+  <tr><td>Token Storage</td><td><code>personal_access_tokens</code> table</td></tr>
+  <tr><td>Token Revocation</td><td>On logout (single token deletion)</td></tr>
+  <tr><td>Multi-Device Support</td><td>Each device gets unique token</td></tr>
+</table>
+
+<h2>6.2 Password Security</h2>
+<table>
+  <tr><th width="30%">Aspect</th><th>Implementation</th></tr>
+  <tr><td>Hashing</td><td>bcrypt (Laravel default)</td></tr>
+  <tr><td>Minimum Length</td><td>8 characters</td></tr>
+  <tr><td>Reset Flow</td><td>3-step OTP verification</td></tr>
+</table>
+
+<h2>6.3 API Security</h2>
+<table>
+  <thead><tr><th width="30%">Measure</th><th>Implementation</th></tr></thead>
+  <tbody>
+    <tr><td>HTTPS</td><td>Configured at Nginx level</td></tr>
+    <tr><td>Rate Limiting</td><td>Redis-based, 10 req/min for mood detection</td></tr>
+    <tr><td>Input Validation</td><td>Laravel Form Requests</td></tr>
+    <tr><td>SQL Injection</td><td>Eloquent ORM (parameterized queries)</td></tr>
+    <tr><td>XSS Prevention</td><td>Output encoding, no inline HTML</td></tr>
+    <tr><td>CSRF Protection</td><td>Stateless API (Bearer token)</td></tr>
+    <tr><td>File Upload</td><td>Validated extensions, MIME types, size limits</td></tr>
+  </tbody>
+</table>
+
+<h2>6.4 Content Moderation</h2>
+<p><strong>3-Layer System:</strong></p>
+<ol>
+  <li><strong>Text Filter:</strong> Blocked words list (free)</li>
+  <li><strong>AWS Rekognition:</strong> Image moderation (optional, paid)</li>
+  <li><strong>Community Reports:</strong> Auto-hide after 3 reports</li>
+</ol>
+
+<h2>6.5 Data Privacy</h2>
+<ul>
+  <li>Soft deletes for sensitive data (mood entries, reports)</li>
+  <li>User can delete account data on request</li>
+  <li>Blocked users completely hidden from feeds</li>
+  <li>Profile privacy settings: public, private, friends_only</li>
+</ul>
+
+<!-- 7. PERFORMANCE -->
+<h1>7. Performance Optimization</h1>
+
+<h2>7.1 Caching Strategy</h2>
+<table>
+  <thead><tr><th width="35%">Cache</th><th width="20%">TTL</th><th width="45%">Purpose</th></tr></thead>
+  <tbody>
+    <tr><td>User profile</td><td>60 seconds</td><td>Reduce DB queries</td></tr>
+    <tr><td>Interests list</td><td>1 hour</td><td>Rarely changes</td></tr>
+    <tr><td>Languages list</td><td>1 hour</td><td>Rarely changes</td></tr>
+    <tr><td>Mood trends</td><td>15 minutes</td><td>Heavy aggregation</td></tr>
+    <tr><td>Mood global stats</td><td>15 minutes</td><td>Admin queries</td></tr>
+    <tr><td>Mood-to-tag mappings</td><td>5 minutes</td><td>Feed algorithm</td></tr>
+    <tr><td>Feed first page</td><td>30 seconds</td><td>High-traffic endpoint</td></tr>
+  </tbody>
+</table>
+
+<h2>7.2 Database Optimization</h2>
+<ul>
+  <li><strong>Cursor-based pagination</strong> instead of offset (constant time)</li>
+  <li><strong>Composite indexes</strong> on frequently queried columns</li>
+  <li><strong>Eager loading</strong> to prevent N+1 queries</li>
+  <li><strong>withCount</strong> for counts without loading relations</li>
+  <li><strong>Soft deletes</strong> instead of hard deletes</li>
+</ul>
+
+<h2>7.3 Media Optimization</h2>
+<ul>
+  <li><strong>CloudFront CDN</strong> for global delivery</li>
+  <li><strong>Image dimensions</strong> stored to avoid loading for size calculation</li>
+  <li><strong>Video thumbnails</strong> auto-generated and cached</li>
+  <li><strong>Direct S3 streaming</strong> for large file uploads</li>
+</ul>
+
+<h2>7.4 AI Service Performance</h2>
+<ul>
+  <li><strong>Model preloading</strong> on service startup (no per-request load time)</li>
+  <li><strong>Image resizing</strong> before inference (max 1024px)</li>
+  <li><strong>Multiple detector backends</strong> with fallback</li>
+  <li><strong>Average response time:</strong> 300-500ms</li>
+</ul>
+
+<!-- 8. MOOD AI -->
+<h1>8. Mood Detection AI System</h1>
+
+<h2>8.1 Architecture</h2>
+<p>The mood AI runs as a <strong>separate Python microservice</strong> to:</p>
+<ul>
+  <li>Isolate ML dependencies from Laravel</li>
+  <li>Allow independent scaling</li>
+  <li>Use Python's superior ML ecosystem</li>
+  <li>Keep Laravel lightweight</li>
+</ul>
+
+<h2>8.2 Detection Pipeline</h2>
+<div class="pipeline">
+  <div class="pipeline-step"><span class="pipeline-num">1</span>Receive base64-encoded image</div>
+  <div class="pipeline-step"><span class="pipeline-num">2</span>Validate (size, format, base64)</div>
+  <div class="pipeline-step"><span class="pipeline-num">3</span>Decode and preprocess (resize to 1024px max)</div>
+  <div class="pipeline-step"><span class="pipeline-num">4</span>Run face detection (OpenCV &rarr; SSD &rarr; skip fallback)</div>
+  <div class="pipeline-step"><span class="pipeline-num">5</span>Run emotion classification (DeepFace)</div>
+  <div class="pipeline-step"><span class="pipeline-num">6</span>Map 7 emotions to 4 moods: Happy, Neutral, Low, Angry</div>
+  <div class="pipeline-step"><span class="pipeline-num">7</span>Auto-save to mood history</div>
+  <div class="pipeline-step"><span class="pipeline-num">8</span>Return result with confidence score</div>
+</div>
+
+<h2>8.3 Mood-Based Feed Algorithm</h2>
+<p><strong>Scoring Formula:</strong></p>
+<pre>score = mood_match_weight(60) + reactions(0-30) + comments(0-20)
+      + views(0-15) + recency(0-25)</pre>
+
+<table>
+  <thead><tr><th width="25%">Factor</th><th width="20%">Max Points</th><th width="55%">Description</th></tr></thead>
+  <tbody>
+    <tr><td>Mood Match</td><td>60</td><td>Post hashtags match mood-content tags</td></tr>
+    <tr><td>Reactions</td><td>30</td><td>3 points per like (capped)</td></tr>
+    <tr><td>Comments</td><td>20</td><td>2 points per comment (capped)</td></tr>
+    <tr><td>Views</td><td>15</td><td>1 point per view (capped)</td></tr>
+    <tr><td>Recency</td><td>25</td><td>Decays by 2 points per day</td></tr>
+  </tbody>
+</table>
+
+<ul>
+  <li><strong>Maximum Score:</strong> 150 points</li>
+  <li><strong>Diversity Rule:</strong> No more than 3 consecutive posts from the same user</li>
+  <li><strong>Backfill:</strong> If mood-matched posts &lt; 20, fill with latest content</li>
+</ul>
+
+<h2>8.4 Analytics &amp; Accuracy Tracking</h2>
+<ul>
+  <li><strong>User Trends:</strong> 7d, 30d, 90d periods</li>
+  <li><strong>Global Stats:</strong> Platform-wide distribution (admin only)</li>
+  <li><strong>Accuracy Tracking:</strong> % of detections confirmed vs corrected by user</li>
+  <li><strong>CSV Export:</strong> For data science team</li>
+</ul>
+
+<!-- 9. DEPLOYMENT -->
+<h1>9. Deployment &amp; Operations</h1>
+
+<h2>9.1 Server Setup</h2>
+<p><strong>Operating System:</strong> Ubuntu 22.04 LTS</p>
+<p><strong>Required Services:</strong></p>
+<table>
+  <tr><th width="30%">Service</th><th>Purpose</th></tr>
+  <tr><td>nginx</td><td>Web server</td></tr>
+  <tr><td>php8.3-fpm</td><td>PHP processor</td></tr>
+  <tr><td>mysql-server</td><td>Database</td></tr>
+  <tr><td>redis-server</td><td>Cache + queue</td></tr>
+  <tr><td>mood-service</td><td>Python systemd service</td></tr>
+</table>
+
+<h2>9.2 Deployment Process</h2>
+<pre># 1. SSH to server
+ssh ubuntu@52.221.249.30
+
+# 2. Pull latest code
+cd /var/www/enom
+sudo chown -R ubuntu:ubuntu .
+git pull origin main
+
+# 3. Run migrations
+php artisan migrate
+
+# 4. Clear caches
+php artisan config:clear
+
+# 5. Regenerate API docs
+php artisan l5-swagger:generate
+
+# 6. Restart services
+sudo systemctl restart mood-service
+sudo systemctl restart php8.3-fpm
+
+# 7. Fix permissions
+sudo chown -R www-data:www-data storage bootstrap/cache
+sudo chmod -R 775 storage bootstrap/cache</pre>
+
+<h2>9.3 Environment Configuration</h2>
+<p>Sensitive credentials stored in <code>.env</code> file (not in version control):</p>
+<pre>APP_URL=http://52.221.249.30
+DB_DATABASE=enom
+REDIS_HOST=127.0.0.1
+AWS_BUCKET=enom-media-storage
+AWS_URL=https://d1wk74ch4zkyve.cloudfront.net
+FIREBASE_CREDENTIALS=/var/www/enom/storage/firebase-credentials.json
+MAIL_MAILER=smtp</pre>
+
+<h2>9.4 Monitoring</h2>
+<h3>Logs</h3>
+<table>
+  <tr><th width="30%">Log Source</th><th>Path / Command</th></tr>
+  <tr><td>Laravel</td><td><code>storage/logs/laravel.log</code></td></tr>
+  <tr><td>Mood Service</td><td><code>sudo journalctl -u mood-service</code></td></tr>
+  <tr><td>Nginx Access</td><td><code>/var/log/nginx/access.log</code></td></tr>
+  <tr><td>Nginx Errors</td><td><code>/var/log/nginx/error.log</code></td></tr>
+</table>
+
+<h3>Health Checks</h3>
+<ul>
+  <li><strong>Laravel:</strong> <code>GET /api/auth/login</code> (responds 422 for empty body)</li>
+  <li><strong>Mood Service:</strong> <code>GET /api/v1/mood/health</code></li>
+</ul>
+
+<!-- 10. TESTING -->
+<h1>10. Testing &amp; Quality Assurance</h1>
+
+<h2>10.1 API Documentation</h2>
+<p><strong>Interactive Swagger UI:</strong></p>
+<table>
+  <tr><th width="30%">Service</th><th>URL</th></tr>
+  <tr><td>Laravel APIs</td><td>http://52.221.249.30/api/documentation</td></tr>
+  <tr><td>Mood AI APIs</td><td>http://52.221.249.30/api/v1/mood/docs</td></tr>
+</table>
+
+<p>All endpoints documented with:</p>
+<ul>
+  <li>Request schemas</li>
+  <li>Response examples</li>
+  <li>Error codes</li>
+  <li>Authentication requirements</li>
+</ul>
+
+<h2>10.2 Testing Tools</h2>
+<table>
+  <tr><th width="30%">Tool</th><th>Purpose</th></tr>
+  <tr><td>Postman</td><td>Manual API testing</td></tr>
+  <tr><td>Swagger UI</td><td>Interactive testing</td></tr>
+  <tr><td>Pytest</td><td>Python unit tests for mood service</td></tr>
+  <tr><td>Browser DevTools</td><td>Frontend integration testing</td></tr>
+</table>
+
+<h2>10.3 Test Coverage Areas</h2>
+<table>
+  <thead><tr><th width="30%">Area</th><th>Coverage</th></tr></thead>
+  <tbody>
+    <tr><td>Authentication flows</td><td>Registration, login, OTP, password reset</td></tr>
+    <tr><td>File uploads</td><td>Image/video, size limits, format validation</td></tr>
+    <tr><td>Permissions</td><td>Token validation, resource ownership</td></tr>
+    <tr><td>Rate limiting</td><td>Mood detection limits</td></tr>
+    <tr><td>Content moderation</td><td>Text filter, report aggregation</td></tr>
+    <tr><td>Mood pipeline</td><td>Image preprocessing, emotion mapping</td></tr>
+  </tbody>
+</table>
+
+<!-- 11. INTEGRATIONS -->
+<h1>11. Third-Party Integrations</h1>
+<table>
+  <thead><tr><th width="25%">Service</th><th width="40%">Purpose</th><th width="35%">Cost</th></tr></thead>
+  <tbody>
+    <tr><td>AWS S3</td><td>Media storage</td><td>Pay-per-use</td></tr>
+    <tr><td>AWS CloudFront</td><td>Global CDN</td><td>Free tier</td></tr>
+    <tr><td>Firebase FCM</td><td>Push notifications</td><td>Free</td></tr>
+    <tr><td>cPanel SMTP</td><td>Email delivery</td><td>Included</td></tr>
+    <tr><td>AWS Rekognition</td><td>Optional image moderation</td><td>Pay-per-use</td></tr>
+  </tbody>
+</table>
+
+<!-- 12. PROJECT STATS -->
+<h1>12. Project Statistics</h1>
+<div class="stat-row">
+  <div class="stat-cell">
+    <span class="stat-number">70+</span>
+    <span class="stat-label">API Endpoints</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-number">21</span>
+    <span class="stat-label">Database Tables</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-number">15</span>
+    <span class="stat-label">Controllers</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-number">20</span>
+    <span class="stat-label">Eloquent Models</span>
+  </div>
+</div>
+<div class="stat-row">
+  <div class="stat-cell">
+    <span class="stat-number">35+</span>
+    <span class="stat-label">Migrations</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-number">9,500</span>
+    <span class="stat-label">Lines of Code</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-number">78</span>
+    <span class="stat-label">Languages</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-number">85-90%</span>
+    <span class="stat-label">Mood Accuracy</span>
+  </div>
+</div>
+
+<!-- 13. ROADMAP -->
+<h1>13. Future Roadmap &amp; Pending Modules</h1>
+
+<p>The following modules are confirmed for upcoming sprints based on client requirements:</p>
+
+<h2>Sprint 5: Mood-Based Feed Customization</h2>
+<div class="highlight-box">
+  <p style="margin: 0;"><strong>Status:</strong> <span class="status-progress">In Progress</span></p>
+</div>
+<p>Personalized content feed driven by the user's detected mood, starting with four core mood categories:</p>
+<table>
+  <thead><tr><th width="20%">Mood</th><th>Content Strategy</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Happy</strong></td><td>Uplifting, funny, dance, music, party, celebration content</td></tr>
+    <tr><td><strong>Neutral</strong></td><td>General interest, educational, news, technology, business content</td></tr>
+    <tr><td><strong>Low</strong></td><td>Motivational, inspiring, calming, mindfulness, nature, self-care content</td></tr>
+    <tr><td><strong>Angry</strong></td><td>Calming, humor, physical activity, fitness, nature content</td></tr>
+  </tbody>
+</table>
+
+<h2>Sprint 6: Chat Module (Key Differentiator)</h2>
+<div class="highlight-box">
+  <p style="margin: 0;"><strong>Status:</strong> <span class="status-progress">Planned</span></p>
+</div>
+<p>Real-time communication module that differentiates ENOM from competitors:</p>
+<table>
+  <thead><tr><th width="35%">Feature</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td>1-on-1 Chat</td><td>Private direct messaging with text-to-speech support</td></tr>
+    <tr><td>Group Chat</td><td>Multi-user group conversations</td></tr>
+    <tr><td>Trip-Based Channel</td><td>Themed channels organized around travel/events</td></tr>
+    <tr><td>Media Sharing</td><td>Share photos, videos, and files in chat</td></tr>
+    <tr><td>Audio &amp; Video Calls</td><td>Real-time voice and video calling</td></tr>
+    <tr><td>Leave / Archive Trip Memory</td><td>Preserve conversations as memories after trip ends</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Technical Requirements:</strong></p>
+<ul>
+  <li>WebSocket server (Laravel Reverb or Socket.IO)</li>
+  <li>WebRTC for audio/video calls</li>
+  <li>Text-to-speech API integration (Google Cloud TTS or AWS Polly)</li>
+  <li>Message encryption for privacy</li>
+  <li>Real-time presence indicators (online/offline/typing)</li>
+</ul>
+
+<h2>Sprint 7: Events Engine</h2>
+<div class="highlight-box">
+  <p style="margin: 0;"><strong>Status:</strong> <span class="status-progress">Planned</span></p>
+</div>
+<p>Community-driven event creation, participation, and ranking system:</p>
+<table>
+  <thead><tr><th width="35%">Feature</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td>Event Creation / Posting</td><td>Users can create and publish events with details, dates, and rules</td></tr>
+    <tr><td>Random User Notification</td><td>Algorithm-based event promotion to random user segments</td></tr>
+    <tr><td>Submission &amp; Ranking</td><td>Participants submit entries; community/algorithm ranks them</td></tr>
+    <tr><td>Winner Display</td><td>Showcase event winners and top performers</td></tr>
+    <tr><td>Subscription Model</td><td>Premium features and longer event posting for paid users</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Technical Requirements:</strong></p>
+<ul>
+  <li>Event CRUD APIs with scheduling support</li>
+  <li>Notification batching system for random user targeting</li>
+  <li>Voting/ranking algorithm with anti-fraud measures</li>
+  <li>Payment gateway integration (Stripe / Razorpay) for subscriptions</li>
+  <li>Event analytics dashboard</li>
+</ul>
+
+<h2>Future Enhancements (Phase 10+)</h2>
+<table>
+  <thead><tr><th width="40%">Feature</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td>Live Streaming</td><td>Real-time broadcast to followers</td></tr>
+    <tr><td>Creator Monetization</td><td>Revenue sharing, tipping, premium content</td></tr>
+    <tr><td>Advanced Analytics Dashboard</td><td>Creator/admin insights and engagement metrics</td></tr>
+    <tr><td>ML Model Fine-Tuning</td><td>Improve mood detection accuracy using user feedback</td></tr>
+    <tr><td>Multi-language NLP Moderation</td><td>Content moderation across 78 supported languages</td></tr>
+    <tr><td>Video Transcoding Pipeline</td><td>Adaptive bitrate streaming for smoother playback</td></tr>
+    <tr><td>Recommendation Engine Refinement</td><td>Collaborative filtering and deep learning improvements</td></tr>
+  </tbody>
+</table>
+
+<!-- 14. SUPPORT -->
+<h1>14. Support &amp; Maintenance</h1>
+
+<h2>14.1 Documentation</h2>
+<ul>
+  <li>API Documentation (Swagger)</li>
+  <li>Code comments and docstrings</li>
+  <li>Deployment runbooks</li>
+  <li>This system documentation</li>
+</ul>
+
+<h2>14.2 Backup Strategy</h2>
+<table>
+  <tr><th width="30%">Data</th><th>Strategy</th></tr>
+  <tr><td>MySQL</td><td>Daily automated backups (recommended for production)</td></tr>
+  <tr><td>SQLite</td><td>Backup with daily cron job</td></tr>
+  <tr><td>S3 versioning</td><td>Enabled</td></tr>
+  <tr><td>Code</td><td>Git repository</td></tr>
+</table>
+
+<h2>14.3 Update Schedule</h2>
+<table>
+  <thead><tr><th width="40%">Type</th><th>Frequency</th></tr></thead>
+  <tbody>
+    <tr><td>Critical patches</td><td>Immediate</td></tr>
+    <tr><td>Security updates</td><td>Within 24 hours</td></tr>
+    <tr><td>Feature updates</td><td>As per sprint cycle</td></tr>
+    <tr><td>Dependency updates</td><td>Quarterly review</td></tr>
+  </tbody>
+</table>
+
+<h2>14.4 Contact &amp; Team</h2>
+<table>
+  <tr><th width="30%">Item</th><th>Details</th></tr>
+  <tr><td>Backend Development</td><td>ENOM Backend Team</td></tr>
+  <tr><td>Repository</td><td>github.com/EnomApps/Enom-Backend</td></tr>
+  <tr><td>Documentation</td><td>Auto-generated via L5-Swagger and FastAPI docs</td></tr>
+</table>
+
+<div class="footer">
+  <p><em>This document is a living document and will be updated as the system evolves.</em></p>
+  <p><strong>Last updated:</strong> April 13, 2026 &nbsp;|&nbsp; <strong>Document Version:</strong> 1.0</p>
+</div>
+
+</body>
+</html>

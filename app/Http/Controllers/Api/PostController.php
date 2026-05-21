@@ -506,7 +506,7 @@ class PostController extends Controller
         }
 
         preg_match_all('/#(\w+)/u', $post->content, $matches);
-        $tags = array_slice(array_unique(array_map('strtolower', $matches[1] ?? [])), 0, 5);
+        $tags = array_slice(array_unique(array_map('strtolower', $matches[1] ?? [])), 0, 6);
 
         if (empty($tags)) {
             $post->hashtags()->detach();
