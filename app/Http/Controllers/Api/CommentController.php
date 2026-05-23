@@ -26,19 +26,47 @@ class CommentController extends Controller
     #[OA\Parameter(name: 'postId', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))]
     #[OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 1))]
     #[OA\Response(response: 200, description: 'Paginated comments')]
-    public function index(int $postId): JsonResponse
+    public function index(Request $request, int $postId): JsonResponse
     {
         Post::findOrFail($postId);
+        $authUserId = $request->user()->id;
 
         $comments = Comment::where('post_id', $postId)
             ->whereNull('parent_id')
             ->with([
                 'user:id,name,username,profile_image',
-                'replies.user:id,name,username,profile_image',
+                'replies' => function ($q) {
+                    $q->with('user:id,name,username,profile_image')
+                      ->withCount('likes');
+                },
             ])
             ->withCount('likes')
             ->latest()
             ->paginate(20);
+
+        // Get all comment IDs (top-level + replies) the user has liked
+        $allCommentIds = [];
+        foreach ($comments as $c) {
+            $allCommentIds[] = $c->id;
+            foreach ($c->replies as $reply) {
+                $allCommentIds[] = $reply->id;
+            }
+        }
+
+        $likedIds = \App\Models\CommentLike::where('user_id', $authUserId)
+            ->whereIn('comment_id', $allCommentIds)
+            ->pluck('comment_id')
+            ->toArray();
+
+        // Append `liked` field to each comment and reply
+        $comments->getCollection()->transform(function ($comment) use ($likedIds) {
+            $comment->liked = in_array($comment->id, $likedIds);
+            $comment->replies->transform(function ($reply) use ($likedIds) {
+                $reply->liked = in_array($reply->id, $likedIds);
+                return $reply;
+            });
+            return $comment;
+        });
 
         return response()->json($comments);
     }
