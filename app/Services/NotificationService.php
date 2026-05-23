@@ -20,6 +20,12 @@ class NotificationService
             return;
         }
 
+        // Deduplication: skip if same notification was sent in the last 24 hours
+        // This prevents spam when users like/unlike repeatedly
+        if (self::isDuplicate($userId, $type, $data)) {
+            return;
+        }
+
         // Store in DB
         Notification::create([
             'user_id' => $userId,
@@ -29,6 +35,36 @@ class NotificationService
 
         // Send push notification
         self::sendPush($userId, $type, $data);
+    }
+
+    /**
+     * Check if a similar notification was sent in the last 24 hours.
+     * Prevents spam from like/unlike/like cycles.
+     */
+    private static function isDuplicate(int $userId, string $type, array $data): bool
+    {
+        $fromUserId = $data['from_user_id'] ?? null;
+        if (!$fromUserId) {
+            return false;
+        }
+
+        // Build a key that uniquely identifies the action source
+        $query = Notification::where('user_id', $userId)
+            ->where('type', $type)
+            ->where('created_at', '>=', now()->subHours(24));
+
+        // Match on from_user_id + target (post_id or comment_id)
+        if (isset($data['comment_id'])) {
+            $query->where('data->from_user_id', $fromUserId)
+                  ->where('data->comment_id', $data['comment_id']);
+        } elseif (isset($data['post_id'])) {
+            $query->where('data->from_user_id', $fromUserId)
+                  ->where('data->post_id', $data['post_id']);
+        } else {
+            $query->where('data->from_user_id', $fromUserId);
+        }
+
+        return $query->exists();
     }
 
     /**
