@@ -1001,6 +1001,126 @@
                 ]
             }
         },
+        "/api/users/{userId}/favourite": {
+            "post": {
+                "tags": [
+                    "Favourites"
+                ],
+                "summary": "Add or remove user from favourites",
+                "description": "Private list - other users do not know they are your favourite. Max 50 favourites.",
+                "operationId": "toggleFavourite",
+                "parameters": [
+                    {
+                        "name": "userId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Favourite toggled"
+                    },
+                    "422": {
+                        "description": "Max favourites reached or self-favourite"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/users/{userId}/favourite-status": {
+            "get": {
+                "tags": [
+                    "Favourites"
+                ],
+                "summary": "Check if user is in your favourites",
+                "operationId": "favouriteStatus",
+                "parameters": [
+                    {
+                        "name": "userId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Favourite status"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/favourites": {
+            "get": {
+                "tags": [
+                    "Favourites"
+                ],
+                "summary": "List your favourite users",
+                "operationId": "listFavourites",
+                "responses": {
+                    "200": {
+                        "description": "List of favourite users"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/posts/favourites": {
+            "get": {
+                "tags": [
+                    "Favourites"
+                ],
+                "summary": "Get chronological feed from favourite users only",
+                "description": "Returns posts from only your favourite users, ordered by newest first.",
+                "operationId": "favouritesFeed",
+                "parameters": [
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Posts from favourite users"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/users/{userId}/follow": {
             "post": {
                 "tags": [
@@ -2851,6 +2971,10 @@
         {
             "name": "Device Tokens",
             "description": "Device Tokens"
+        },
+        {
+            "name": "Favourites",
+            "description": "Favourites"
         },
         {
             "name": "Follow",

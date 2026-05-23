@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\RepostController;
 use App\Http\Controllers\Api\BlockReportController;
 use App\Http\Controllers\Api\MoodFeedController;
+use App\Http\Controllers\Api\FavouriteController;
 
 // ─── Public Auth Routes ────────────────────────────────────────────────────
 Route::prefix('auth')->group(function () {
@@ -112,4 +113,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/{userId}/followers',       [FollowController::class, 'followers']);
     Route::get('/users/{userId}/following',       [FollowController::class, 'following']);
     Route::get('/users/{userId}/follow-counts',   [FollowController::class, 'counts']);
+
+    // Favourites (private curated user list, max 50)
+    Route::post('/users/{userId}/favourite',         [FavouriteController::class, 'toggle']);
+    Route::get('/users/{userId}/favourite-status',   [FavouriteController::class, 'status']);
+    Route::get('/favourites',                        [FavouriteController::class, 'index']);
+    Route::get('/posts/favourites',                  [FavouriteController::class, 'feed']);
 });
