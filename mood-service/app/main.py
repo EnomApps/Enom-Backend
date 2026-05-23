@@ -23,7 +23,10 @@ from typing import Optional, List
 from app.config import HOST, PORT
 from app.auth import validate_token, AuthError
 from app.preprocessing import process_image, ImagePreprocessingError
-from app.mood_detector import detect_mood, load_model, MoodDetectionError
+from app.mood_detector import (
+    detect_mood, load_model, MoodDetectionError, ModelNotReadyError,
+    get_model_state, is_model_ready, reload_model, MODEL_VERSION
+)
 from app.rate_limiter import check_rate_limit, RateLimitExceeded
 from app import database as db
 
@@ -40,9 +43,13 @@ logger = logging.getLogger("mood-service")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Mood Detection Service...")
-    load_model()
+    # Graceful degradation: service starts even if model fails
+    model_loaded = load_model(allow_failure=True)
     db.init_db()
-    logger.info("Service ready.")
+    if model_loaded:
+        logger.info("Service ready in NORMAL mode.")
+    else:
+        logger.warning("Service ready in DEGRADED mode - model failed to load.")
     yield
     logger.info("Shutting down Mood Detection Service.")
 
@@ -64,6 +71,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Middleware to add X-Model-Version header to all responses
+@app.middleware("http")
+async def add_model_version_header(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Model-Version"] = MODEL_VERSION
+    return response
 
 
 # ─── Request/Response Models ──────────────────────────
@@ -109,15 +124,113 @@ class MoodHistoryEntry(BaseModel):
     created_at: str
 
 
-# ─── Health Check ─────────────────────────────────────
-@app.get("/api/v1/mood/health")
+# ─── Health Check (Liveness) ──────────────────────────
+@app.get("/api/v1/mood/health", tags=["Health"])
+@app.get("/health", tags=["Health"])
 async def health_check():
+    """
+    Liveness probe. Returns 200 even if model is not loaded (degraded mode).
+    Includes detailed model status for monitoring.
+    """
+    state = get_model_state()
+    mode = "normal" if state["loaded"] else "degraded"
+
     return {
         "status": "ok",
         "service": "mood-detection",
         "version": "1.0.0",
+        "mode": mode,
+        "model": {
+            "version": state["version"],
+            "loaded": state["loaded"],
+            "loading": state["loading"],
+            "load_time_ms": state["load_time_ms"],
+            "loaded_at": state["loaded_at"],
+            "inference_count": state["inference_count"],
+            "last_error": state["last_error"],
+        },
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+# ─── Readiness Probe ──────────────────────────────────
+@app.get("/api/v1/mood/health/ready", tags=["Health"])
+@app.get("/health/ready", tags=["Health"])
+async def readiness_check():
+    """
+    Readiness probe. Returns 200 only if model is loaded AND dependencies connected.
+    Used by load balancers/orchestrators to decide if traffic should be routed here.
+    """
+    state = get_model_state()
+
+    # Check Redis
+    redis_ok = False
+    try:
+        from app.rate_limiter import get_redis
+        r = get_redis()
+        if r is not None:
+            r.ping()
+            redis_ok = True
+    except Exception:
+        redis_ok = False
+
+    # Check SQLite
+    sqlite_ok = False
+    try:
+        conn = db.get_db()
+        conn.execute("SELECT 1").fetchone()
+        conn.close()
+        sqlite_ok = True
+    except Exception:
+        sqlite_ok = False
+
+    ready = state["loaded"] and sqlite_ok
+
+    response = {
+        "ready": ready,
+        "checks": {
+            "model_loaded": state["loaded"],
+            "redis_connected": redis_ok,
+            "sqlite_connected": sqlite_ok,
+        },
+        "model_version": state["version"],
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    status_code = 200 if ready else 503
+    return JSONResponse(status_code=status_code, content=response)
+
+
+# ─── Hot-Swap Model (Admin) ───────────────────────────
+@app.post("/api/v1/mood/admin/reload-model", tags=["Health"])
+async def reload_model_endpoint(authorization: str = Header(None)):
+    """
+    Hot-swap model without service restart.
+    Requires admin authentication via Bearer token.
+    """
+    try:
+        user = await validate_token(authorization or "")
+    except AuthError as e:
+        return JSONResponse(status_code=401, content={"error": "AUTH_FAILED", "message": e.message})
+
+    logger.info(f"Model reload requested by user {user['user_id']}")
+    state = reload_model()
+
+    if state["loaded"]:
+        return {
+            "status": "success",
+            "message": "Model reloaded successfully.",
+            "model": state,
+        }
+    else:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": "Model reload failed. Service in degraded mode.",
+                "model": state,
+            },
+        )
 
 
 # ─── Mood Detection Endpoint ─────────────────────────
@@ -139,6 +252,19 @@ async def detect_mood_endpoint(
     start_time = time.time()
 
     logger.info(f"[{request_id}] Mood detection request received")
+
+    # ─── 0. Graceful Degradation Check ───────────
+    if not is_model_ready():
+        logger.warning(f"[{request_id}] Model not ready - returning 503")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Service Unavailable",
+                "code": "MODEL_NOT_READY",
+                "message": "Mood detection model is not loaded. Service is in degraded mode.",
+                "requestId": request_id,
+            },
+        )
 
     # ─── 1. Authentication ────────────────────────
     try:
