@@ -54,22 +54,26 @@ def validate_image(image_bytes: bytes) -> Image.Image:
         img.verify()
         # Re-open after verify (verify() closes the image)
         img = Image.open(io.BytesIO(image_bytes))
-
-        # CRITICAL FIX: Apply EXIF orientation so mobile photos are upright
-        # Without this, sideways photos cause wrong emotion detection
-        img = ImageOps.exif_transpose(img)
     except Exception:
         raise ImagePreprocessingError(
             code="INVALID_IMAGE",
             message="Cannot process image. Please provide a valid JPEG or PNG image."
         )
 
-    # Check format
-    if img.format not in ("JPEG", "PNG"):
+    # Check format BEFORE applying transformations (exif_transpose strips format info)
+    original_format = img.format
+    if original_format not in ("JPEG", "PNG"):
         raise ImagePreprocessingError(
             code="UNSUPPORTED_FORMAT",
-            message=f"Image format '{img.format}' is not supported. Use JPEG or PNG."
+            message=f"Image format '{original_format}' is not supported. Use JPEG or PNG."
         )
+
+    # CRITICAL FIX: Apply EXIF orientation so mobile photos are upright
+    # Without this, sideways photos cause wrong emotion detection
+    try:
+        img = ImageOps.exif_transpose(img)
+    except Exception:
+        pass  # If exif rotation fails, use original image
 
     return img
 
