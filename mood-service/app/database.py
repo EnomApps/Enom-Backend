@@ -41,6 +41,18 @@ def init_db():
             deleted_at TEXT DEFAULT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            action TEXT NOT NULL,
+            details TEXT,
+            ip_address TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_audit_user
+            ON audit_log(user_id, created_at DESC);
+
         CREATE INDEX IF NOT EXISTS idx_mood_entries_user_id
             ON mood_entries(user_id, detected_at DESC);
 
@@ -492,5 +504,113 @@ def export_entries_csv(user_id: str = None, start_date: str = None, end_date: st
         ).fetchall()
 
         return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+# ─── GDPR & Privacy Functions ─────────────────────────
+
+def log_audit_event(user_id: str, action: str, details: str = None, ip_address: str = None):
+    """Record an audit event for compliance tracking."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO audit_log (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)",
+            (user_id, action, details, ip_address),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def delete_all_user_data(user_id: str) -> dict:
+    """
+    GDPR right-to-be-forgotten: permanently delete all mood data for a user.
+    Returns counts of deleted records.
+    """
+    conn = get_db()
+    try:
+        # Count before deletion for audit
+        count_before = conn.execute(
+            "SELECT COUNT(*) as c FROM mood_entries WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()["c"]
+
+        # Hard delete all mood entries (not soft delete - for GDPR compliance)
+        conn.execute("DELETE FROM mood_entries WHERE user_id = ?", (user_id,))
+        conn.commit()
+
+        return {
+            "deleted_entries": count_before,
+            "user_id": user_id,
+        }
+    finally:
+        conn.close()
+
+
+def export_all_user_data(user_id: str) -> dict:
+    """
+    GDPR right-to-portability: export all user mood data in JSON format.
+    Returns complete user data including history, corrections, and metadata.
+    """
+    conn = get_db()
+    try:
+        # Get all non-deleted entries
+        entries = conn.execute(
+            """SELECT id, mood, confidence, source, all_scores,
+                      original_mood, is_corrected, detected_at, created_at
+               FROM mood_entries
+               WHERE user_id = ? AND deleted_at IS NULL
+               ORDER BY detected_at DESC""",
+            (user_id,),
+        ).fetchall()
+
+        # Get audit log for this user
+        audit = conn.execute(
+            """SELECT action, details, created_at
+               FROM audit_log
+               WHERE user_id = ?
+               ORDER BY created_at DESC
+               LIMIT 1000""",
+            (user_id,),
+        ).fetchall()
+
+        return {
+            "user_id": user_id,
+            "export_timestamp": datetime.now(timezone.utc).isoformat(),
+            "data_category": "mood_history",
+            "entry_count": len(entries),
+            "entries": [dict(r) for r in entries],
+            "audit_log": [dict(r) for r in audit],
+        }
+    finally:
+        conn.close()
+
+
+def purge_old_entries(retention_days: int = 365) -> dict:
+    """
+    Auto-purge mood entries older than retention period.
+    Default: 365 days.
+    """
+    conn = get_db()
+    try:
+        # Get count before
+        count = conn.execute(
+            "SELECT COUNT(*) as c FROM mood_entries WHERE detected_at < datetime('now', ? || ' days')",
+            (f"-{retention_days}",),
+        ).fetchone()["c"]
+
+        # Permanently delete
+        conn.execute(
+            "DELETE FROM mood_entries WHERE detected_at < datetime('now', ? || ' days')",
+            (f"-{retention_days}",),
+        )
+        conn.commit()
+
+        return {
+            "purged_count": count,
+            "retention_days": retention_days,
+            "purged_at": datetime.now(timezone.utc).isoformat(),
+        }
     finally:
         conn.close()

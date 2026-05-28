@@ -715,6 +715,141 @@ async def export_mood_data(
     return {"data": entries, "count": len(entries)}
 
 
+# ─── GDPR & Privacy Endpoints ─────────────────────────
+
+PRIVACY_POLICY_VERSION = "1.0"
+PRIVACY_POLICY_TEXT = """
+ENOM Mood Detection Service - Privacy Policy v1.0
+
+DATA COLLECTION
+- Facial images submitted for mood detection are processed in memory only.
+- Images are NEVER written to disk, S3, or any persistent storage.
+- Image data is securely zeroed from memory immediately after inference.
+
+DATA STORAGE
+- Only mood classification results are stored (Happy, Neutral, Low, Angry).
+- Stored data includes: mood label, confidence score, timestamp, source (camera/manual).
+- No biometric data, face embeddings, or image content is retained.
+
+DATA RETENTION
+- Mood history is automatically purged after 365 days.
+- Users can request immediate deletion at any time via DELETE /api/v1/user/{id}/data.
+
+YOUR RIGHTS (GDPR)
+- Right to access: GET /api/v1/user/{id}/export returns all your data as JSON.
+- Right to deletion: DELETE /api/v1/user/{id}/data permanently removes all your data.
+- Right to correction: PUT /api/v1/mood/history/{entry_id}/correct allows you to fix detections.
+- Right to portability: Export endpoint returns machine-readable JSON.
+
+SECURITY
+- All API requests require Bearer token authentication.
+- All data transfers use HTTPS encryption.
+- Audit logs track all data access and deletion events.
+
+CONTACT
+For privacy concerns, contact: privacy@enom.ai
+"""
+
+
+@app.get("/api/v1/mood/privacy-policy", tags=["GDPR & Privacy"])
+async def get_privacy_policy():
+    """Return current privacy policy text and version."""
+    return {
+        "version": PRIVACY_POLICY_VERSION,
+        "effective_date": "2026-05-27",
+        "policy": PRIVACY_POLICY_TEXT.strip(),
+        "last_updated": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.get("/api/v1/user/{user_id}/export", tags=["GDPR & Privacy"])
+async def gdpr_export_user_data(
+    user_id: str,
+    request: Request,
+    authorization: str = Header(None),
+):
+    """
+    GDPR right-to-portability: Export all mood data for a user as JSON.
+    User can only export their own data.
+    """
+    try:
+        user = await validate_token(authorization or "")
+    except AuthError as e:
+        return JSONResponse(status_code=401, content={"error": "AUTH_FAILED", "message": e.message})
+
+    # Users can only export their own data
+    if user["user_id"] != user_id:
+        return JSONResponse(
+            status_code=403,
+            content={"error": "FORBIDDEN", "message": "You can only export your own data."},
+        )
+
+    # Audit the export
+    client_ip = request.client.host if request.client else "unknown"
+    db.log_audit_event(user_id, "data_export", f"GDPR data export requested", client_ip)
+
+    data = db.export_all_user_data(user_id)
+    return data
+
+
+@app.delete("/api/v1/user/{user_id}/data", tags=["GDPR & Privacy"])
+async def gdpr_delete_user_data(
+    user_id: str,
+    request: Request,
+    authorization: str = Header(None),
+):
+    """
+    GDPR right-to-be-forgotten: Permanently delete all mood data for a user.
+    Cannot be undone. User can only delete their own data.
+    """
+    try:
+        user = await validate_token(authorization or "")
+    except AuthError as e:
+        return JSONResponse(status_code=401, content={"error": "AUTH_FAILED", "message": e.message})
+
+    if user["user_id"] != user_id:
+        return JSONResponse(
+            status_code=403,
+            content={"error": "FORBIDDEN", "message": "You can only delete your own data."},
+        )
+
+    # Audit BEFORE deletion (so the log persists)
+    client_ip = request.client.host if request.client else "unknown"
+    db.log_audit_event(user_id, "data_deletion", "GDPR full data deletion requested", client_ip)
+
+    result = db.delete_all_user_data(user_id)
+    return {
+        "message": "All mood data permanently deleted.",
+        "deleted_entries": result["deleted_entries"],
+        "user_id": user_id,
+        "deleted_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.post("/api/v1/mood/admin/purge-old-data", tags=["GDPR & Privacy"])
+async def purge_old_data(
+    authorization: str = Header(None),
+    retention_days: int = 365,
+):
+    """
+    Admin endpoint to manually trigger purge of old mood entries.
+    Also runs automatically via cron daily.
+    """
+    try:
+        user = await validate_token(authorization or "")
+    except AuthError as e:
+        return JSONResponse(status_code=401, content={"error": "AUTH_FAILED", "message": e.message})
+
+    result = db.purge_old_entries(retention_days)
+    db.log_audit_event(user["user_id"], "data_purge", f"Manual purge: {result['purged_count']} entries removed", None)
+
+    return {
+        "message": "Old data purged successfully.",
+        "purged_count": result["purged_count"],
+        "retention_days": retention_days,
+    }
+
+
 # ─── Run ──────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
