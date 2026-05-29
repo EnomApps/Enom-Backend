@@ -40,4 +40,8 @@ return [
         'region'  => env('AWS_DEFAULT_REGION', 'ap-southeast-1'),
     ],
 
+    'google_places' => [
+        'key' => env('GOOGLE_PLACES_API_KEY'),
+    ],
+
 ];

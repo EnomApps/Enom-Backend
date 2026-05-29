@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\RepostController;
 use App\Http\Controllers\Api\BlockReportController;
 use App\Http\Controllers\Api\MoodFeedController;
 use App\Http\Controllers\Api\FavouriteController;
+use App\Http\Controllers\Api\PlaceController;
 
 // ─── Public Auth Routes ────────────────────────────────────────────────────
 Route::prefix('auth')->group(function () {
@@ -119,4 +120,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/{userId}/favourite-status',   [FavouriteController::class, 'status']);
     Route::get('/favourites',                        [FavouriteController::class, 'index']);
     Route::get('/posts/favourites',                  [FavouriteController::class, 'feed']);
+
+    // Places (Google Places API proxy - server-side key)
+    Route::get('/places/search', [PlaceController::class, 'search']);
 });
