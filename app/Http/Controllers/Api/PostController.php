@@ -49,6 +49,10 @@ class PostController extends Controller
             ->merge(Block::where('blocked_id', $authUserId)->pluck('blocker_id'))
             ->unique()->toArray();
 
+        // Get post IDs the user marked "not interested"
+        $notInterestedIds = \App\Models\NotInterested::where('user_id', $authUserId)
+            ->pluck('post_id')->toArray();
+
         $query = Post::with([
                 'user:id,name,username,profile_image',
                 'media:id,post_id,type,url,thumbnail_url,width,height',
@@ -59,7 +63,8 @@ class PostController extends Controller
             ])
             ->withCount(['comments', 'reactions', 'views', 'reposts'])
             ->where('moderation_status', 'approved')
-            ->whereNotIn('user_id', $blockedIds);
+            ->whereNotIn('user_id', $blockedIds)
+            ->whereNotIn('id', $notInterestedIds);
 
         if ($userId) {
             $query->where('user_id', $userId);
@@ -104,6 +109,30 @@ class PostController extends Controller
         $blockedIds = Block::where('blocker_id', $authUserId)->pluck('blocked_id')
             ->merge(Block::where('blocked_id', $authUserId)->pluck('blocker_id'))
             ->unique()->toArray();
+
+        // Get "not interested" posts and the users/hashtags to de-rank
+        $notInterestedIds = \App\Models\NotInterested::where('user_id', $authUserId)
+            ->pluck('post_id')->toArray();
+
+        // De-rank: users whose posts were marked not interested
+        $derankUserIds = [];
+        $derankHashtagPostIds = [];
+        if (!empty($notInterestedIds)) {
+            $derankUserIds = Post::whereIn('id', $notInterestedIds)
+                ->pluck('user_id')->unique()->toArray();
+
+            // De-rank posts sharing hashtags with not-interested posts
+            $derankHashtagIds = DB::table('hashtag_post')
+                ->whereIn('post_id', $notInterestedIds)
+                ->pluck('hashtag_id')->unique()->toArray();
+
+            if (!empty($derankHashtagIds)) {
+                $derankHashtagPostIds = DB::table('hashtag_post')
+                    ->whereIn('hashtag_id', $derankHashtagIds)
+                    ->whereNotIn('post_id', $notInterestedIds)
+                    ->pluck('post_id')->unique()->toArray();
+            }
+        }
 
         // Get followed user IDs
         $followingIds = Follow::where('follower_id', $authUserId)->pluck('following_id')->toArray();
@@ -171,11 +200,14 @@ class PostController extends Controller
             ->where('moderation_status', 'approved')
             ->where('user_id', '!=', $authUserId)
             ->whereNotIn('user_id', $blockedIds)
+            ->whereNotIn('id', $notInterestedIds)
             ->orderByRaw('
                 (CASE WHEN user_id IN (' . (count($followingIds) ? implode(',', $followingIds) : '0') . ') THEN 50 ELSE 0 END)
                 + (CASE WHEN id IN (' . (count($interestPostIds) ? implode(',', $interestPostIds) : '0') . ') THEN 40 ELSE 0 END)
                 + (CASE WHEN id NOT IN (' . (count($viewedPostIds) ? implode(',', $viewedPostIds) : '0') . ') THEN 30 ELSE 0 END)
                 + (CASE WHEN id IN (' . (count($likedHashtagPostIds) ? implode(',', $likedHashtagPostIds) : '0') . ') THEN 25 ELSE 0 END)
+                - (CASE WHEN user_id IN (' . (count($derankUserIds) ? implode(',', $derankUserIds) : '0') . ') THEN 30 ELSE 0 END)
+                - (CASE WHEN id IN (' . (count($derankHashtagPostIds) ? implode(',', $derankHashtagPostIds) : '0') . ') THEN 20 ELSE 0 END)
                 + LEAST(reactions_count * 3, 30)
                 + LEAST(comments_count * 2, 20)
                 + LEAST(views_count, 20)

@@ -1508,6 +1508,66 @@
                 ]
             }
         },
+        "/api/posts/{postId}/not-interested": {
+            "post": {
+                "tags": [
+                    "Feed Algorithm"
+                ],
+                "summary": "Mark a post as not interested",
+                "description": "Hides this post from the user's feed and reduces similar content (same user, hashtags) in future recommendations.",
+                "operationId": "markNotInterested",
+                "parameters": [
+                    {
+                        "name": "postId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Post marked as not interested"
+                    },
+                    "404": {
+                        "description": "Post not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Feed Algorithm"
+                ],
+                "summary": "Undo \"not interested\" on a post",
+                "operationId": "undoNotInterested",
+                "parameters": [
+                    {
+                        "name": "postId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Removed from not interested"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/notifications": {
             "get": {
                 "tags": [
@@ -3092,6 +3152,10 @@
         {
             "name": "Mood Feed",
             "description": "Mood Feed"
+        },
+        {
+            "name": "Feed Algorithm",
+            "description": "Feed Algorithm"
         },
         {
             "name": "Notifications",

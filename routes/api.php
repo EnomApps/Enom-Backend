@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\BlockReportController;
 use App\Http\Controllers\Api\MoodFeedController;
 use App\Http\Controllers\Api\FavouriteController;
 use App\Http\Controllers\Api\PlaceController;
+use App\Http\Controllers\Api\NotInterestedController;
 
 // ─── Public Auth Routes ────────────────────────────────────────────────────
 Route::prefix('auth')->group(function () {
@@ -123,4 +124,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Places (Google Places API proxy - server-side key)
     Route::get('/places/search', [PlaceController::class, 'search']);
+
+    // Not Interested (TikTok-style feed feedback)
+    Route::post('/posts/{postId}/not-interested',   [NotInterestedController::class, 'store']);
+    Route::delete('/posts/{postId}/not-interested', [NotInterestedController::class, 'destroy']);
 });
