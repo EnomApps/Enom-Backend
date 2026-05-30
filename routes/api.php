@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\MoodFeedController;
 use App\Http\Controllers\Api\FavouriteController;
 use App\Http\Controllers\Api\PlaceController;
 use App\Http\Controllers\Api\NotInterestedController;
+use App\Http\Controllers\Api\DiscoverController;
 
 // ─── Public Auth Routes ────────────────────────────────────────────────────
 Route::prefix('auth')->group(function () {
@@ -128,4 +129,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Not Interested (TikTok-style feed feedback)
     Route::post('/posts/{postId}/not-interested',   [NotInterestedController::class, 'store']);
     Route::delete('/posts/{postId}/not-interested', [NotInterestedController::class, 'destroy']);
+
+    // Discover (suggested users to follow - "Add User" feature)
+    Route::get('/users/discover', [DiscoverController::class, 'users']);
 });
