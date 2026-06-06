@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\DeviceToken;
 use App\Models\Notification;
 use Illuminate\Support\Facades\Log;
+use Kreait\Firebase\Messaging\AndroidConfig;
+use Kreait\Firebase\Messaging\ApnsConfig;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification as FcmNotification;
 
@@ -88,15 +90,39 @@ class NotificationService
         $title = self::getTitle($type);
         $body  = self::getBody($type, $data);
 
+        // Recipient's total unread count after this notification was stored.
+        // Flutter app uses data.unread_count to update the in-app badge;
+        // iOS uses apns.payload.aps.badge for the native app-icon badge.
+        $unreadCount = Notification::where('user_id', $userId)
+            ->where('is_read', false)
+            ->count();
+
         // Convert all data values to strings (FCM requirement)
-        $fcmData = array_map('strval', array_merge($data, ['type' => $type]));
+        $fcmData = array_map('strval', array_merge($data, [
+            'type'         => $type,
+            'unread_count' => $unreadCount,
+        ]));
+
+        $androidConfig = AndroidConfig::fromArray([
+            'priority' => 'high',
+        ]);
+
+        $apnsConfig = ApnsConfig::fromArray([
+            'payload' => [
+                'aps' => [
+                    'badge' => $unreadCount,
+                ],
+            ],
+        ]);
 
         foreach ($tokens as $token) {
             try {
                 $message = CloudMessage::new()
                     ->toToken($token)
                     ->withNotification(FcmNotification::create($title, $body))
-                    ->withData($fcmData);
+                    ->withData($fcmData)
+                    ->withAndroidConfig($androidConfig)
+                    ->withApnsConfig($apnsConfig);
 
                 $messaging->send($message);
             } catch (\Kreait\Firebase\Exception\Messaging\NotFound
