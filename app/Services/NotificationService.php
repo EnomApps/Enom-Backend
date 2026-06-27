@@ -145,6 +145,7 @@ class NotificationService
             'reply'        => 'New Reply',
             'repost'       => 'Reposted',
             'comment_like' => 'Comment Liked',
+            'new_post'     => 'New Post',
             default        => 'Notification',
         };
     }
@@ -160,6 +161,11 @@ class NotificationService
             'reply'        => "{$name} replied to your comment.",
             'repost'       => "{$name} reposted your post.",
             'comment_like' => "{$name} liked your comment.",
+            'new_post'     => match ($data['post_type'] ?? 'post') {
+                'video' => "{$name} posted a new video.",
+                'image' => "{$name} shared a new photo.",
+                default => "{$name} shared a new post.",
+            },
             default        => 'You have a new notification.',
         };
     }

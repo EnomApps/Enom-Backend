@@ -11,6 +11,7 @@ use App\Models\PostMedia;
 use App\Models\PostView;
 use App\Models\Reaction;
 use App\Services\ContentModerationService;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -303,7 +304,7 @@ class PostController extends Controller
             'latitude'      => ['nullable', 'numeric', 'between:-90,90'],
             'longitude'     => ['nullable', 'numeric', 'between:-180,180'],
             'media'         => ['sometimes', 'array', 'max:10'],
-            'media.*'       => ['file', 'mimes:jpg,jpeg,png,webp,mp4,mov', 'max:102400'],
+            'media.*'       => ['file', 'mimes:jpg,jpeg,png,webp,mp4,mov', 'max:256000'],
             'thumbnails'    => ['sometimes', 'array', 'max:10'],
             'thumbnails.*'  => ['file', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ]);
@@ -354,15 +355,34 @@ class PostController extends Controller
             $thumbnails = $request->file('thumbnails', []);
             $videoIndex = 0;
 
-            foreach ($request->file('media') as $file) {
+            foreach ($request->file('media') as $i => $file) {
                 $ext  = strtolower($file->getClientOriginalExtension());
                 $type = in_array($ext, ['mp4', 'mov']) ? 'video' : 'image';
                 $name = Str::random(40);
                 $path = 'post-media/' . $name . '.' . $ext;
                 $size = $file->getSize();
 
-                // Stream file directly to S3 (memory efficient)
-                Storage::disk('s3')->putFileAs('post-media', $file, $name . '.' . $ext);
+                try {
+                    // Stream file directly to S3 (memory efficient)
+                    Storage::disk('s3')->putFileAs('post-media', $file, $name . '.' . $ext);
+                } catch (\Throwable $e) {
+                    \Log::error('S3 upload failed for post media', [
+                        'post_id'    => $post->id,
+                        'user_id'    => $request->user()->id,
+                        'media_idx'  => $i,
+                        'file_name'  => $file->getClientOriginalName(),
+                        'file_size'  => $size,
+                        'file_type'  => $type,
+                        'error'      => $e->getMessage(),
+                    ]);
+                    // Roll back the post so the client doesn't end up with an empty post
+                    $post->media()->delete();
+                    $post->delete();
+                    return response()->json([
+                        'message' => 'Media upload failed. Please try again.',
+                        'detail'  => 'File ' . ($i + 1) . ' could not be uploaded to storage.',
+                    ], 500);
+                }
 
                 $mediaData = [
                     'post_id' => $post->id,
@@ -384,8 +404,15 @@ class PostController extends Controller
                 if ($type === 'video' && isset($thumbnails[$videoIndex])) {
                     $thumb = $thumbnails[$videoIndex];
                     $thumbName = 'thumbnails/' . Str::random(40) . '.' . $thumb->getClientOriginalExtension();
-                    Storage::disk('s3')->putFileAs('thumbnails', $thumb, basename($thumbName));
-                    $mediaData['thumbnail_url'] = $thumbName;
+                    try {
+                        Storage::disk('s3')->putFileAs('thumbnails', $thumb, basename($thumbName));
+                        $mediaData['thumbnail_url'] = $thumbName;
+                    } catch (\Throwable $e) {
+                        \Log::warning('S3 thumbnail upload failed (proceeding without thumbnail)', [
+                            'post_id' => $post->id,
+                            'error'   => $e->getMessage(),
+                        ]);
+                    }
                     $videoIndex++;
                 }
 
@@ -398,6 +425,11 @@ class PostController extends Controller
 
         // Clear feed cache
         Cache::forget('feed:public:first:15');
+
+        // Notify followers about the new post (skip private posts)
+        if ($post->visibility !== 'private') {
+            $this->notifyFollowersOfNewPost($post, $request->user());
+        }
 
         return response()->json([
             'message' => 'Post created successfully.',
@@ -530,6 +562,42 @@ class PostController extends Controller
     // ─────────────────────────────────────────
     // EXTRACT & SYNC HASHTAGS
     // ─────────────────────────────────────────
+    /**
+     * Notify all followers of the post author about a new post.
+     * Skips users who have blocked the author or whom the author has blocked.
+     */
+    private function notifyFollowersOfNewPost(Post $post, $author): void
+    {
+        $firstMedia = $post->media()->first();
+        $postType = $firstMedia?->type ?? 'post';
+
+        // Get follower IDs (people who follow this author)
+        $followerIds = Follow::where('following_id', $author->id)->pluck('follower_id');
+
+        if ($followerIds->isEmpty()) {
+            return;
+        }
+
+        // Exclude blocked relationships in either direction
+        $blockedIds = Block::where('blocker_id', $author->id)->pluck('blocked_id')
+            ->merge(Block::where('blocked_id', $author->id)->pluck('blocker_id'))
+            ->unique()
+            ->toArray();
+
+        foreach ($followerIds as $followerId) {
+            if (in_array($followerId, $blockedIds)) {
+                continue;
+            }
+
+            NotificationService::send($followerId, 'new_post', [
+                'from_user_id'   => $author->id,
+                'from_user_name' => $author->name,
+                'post_id'        => $post->id,
+                'post_type'      => $postType,
+            ]);
+        }
+    }
+
     private function syncHashtags(Post $post): void
     {
         if (!$post->content) {
